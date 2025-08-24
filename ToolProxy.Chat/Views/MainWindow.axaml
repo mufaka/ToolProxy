@@ -3,6 +3,7 @@
         xmlns:vm="using:ToolProxy.Chat.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+		xmlns:md="clr-namespace:Markdown.Avalonia;assembly=Markdown.Avalonia"
         mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
         x:Class="ToolProxy.Chat.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -27,7 +28,7 @@
     </Border>
 
     <!-- Chat Messages -->
-    <ScrollViewer Grid.Row="1" Name="ChatScrollViewer" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Grid.Row="1" Name="ChatScrollViewer" VerticalScrollBarVisibility="Auto" Foreground="#666">
       <ItemsControl ItemsSource="{Binding Messages}" Margin="10">
         <ItemsControl.ItemTemplate>
           <DataTemplate>
@@ -37,8 +38,7 @@
               <StackPanel>
                 <TextBlock Text="{Binding Role}" FontWeight="Bold" FontSize="12" 
                           Foreground="#666" Margin="0,0,0,5"/>
-                <TextBlock Text="{Binding Content}" TextWrapping="Wrap"
-                          Foreground="#666" FontSize="14" LineHeight="20"/>
+				<md:MarkdownScrollViewer Markdown="{Binding Content}" />
                 <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}"
                           Foreground="#666" FontSize="10" Opacity="0.6" HorizontalAlignment="Right" Margin="0,5,0,0"/>
               </StackPanel>
