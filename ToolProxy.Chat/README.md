@@ -6,6 +6,8 @@ A modern desktop chat application built with Avalonia UI that integrates with th
 
 ToolProxy Chat provides an intuitive chat interface that allows users to interact with AI agents that have access to various tools through the ToolProxy MCP server. The application leverages Microsoft's Semantic Kernel framework for agent orchestration and Ollama for local language model inference.
 
+<img width="2161" height="1962" alt="image" src="https://github.com/user-attachments/assets/cda0ea0a-cb27-4645-be12-9531bb1ea53d" />
+
 ## Features
 
 - **Modern UI**: Built with Avalonia UI for cross-platform desktop support (.NET 9)
