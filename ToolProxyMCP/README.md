@@ -182,7 +182,7 @@ Remember that you can use the tool-proxy tool to search for tools that can help 
 1. **.NET 9.0 SDK**
 2. **Ollama** (for semantic search)
    - Install Ollama: https://ollama.ai/download
-   - Pull the embedding model: `ollama pull mxbai-embed-large`
+   - Pull the embedding model: `ollama pull nomic-embed-text`
 3. **Node.js** (for npm-based MCP servers)
 4. **Python with uvx** (for Python-based MCP servers)
 
@@ -200,7 +200,7 @@ Remember that you can use the tool-proxy tool to search for tools that can help 
 3. **Start Ollama** (if using semantic search):
    ```bash
    ollama serve
-   ollama pull mxbai-embed-large
+   ollama pull mxbai-embed-large # or nomic-embed-text for larger context
    ```
 
 4. **Run the server:**

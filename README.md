@@ -63,7 +63,7 @@ A modern desktop chat application built with Avalonia UI that provides an intuit
 ```bash
 ollama serve
 ollama pull qwen2.5:7b-instruct    # For chat
-ollama pull mxbai-embed-large      # For semantic search
+ollama pull mxbai-embed-large      # For semantic search, or nomic-embed-text for larger context size
 ```
 
 ### 2. Start ToolProxy MCP Server
