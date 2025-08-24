@@ -42,15 +42,58 @@ namespace ToolProxy.Tools
 
                 foreach (var result in results)
                 {
-                    resultLines.Add($"?? {result.ServerName}.{result.Tool.Name} (Score: {result.RelevanceScore:F3})");
-                    resultLines.Add($"   ?? {result.Tool.Description}");
+                    resultLines.Add($"{result.ServerName}.{result.Tool.Name} (Score: {result.RelevanceScore:F3})");
+                    resultLines.Add($"    {result.Tool.Description}");
 
                     if (result.Tool.Parameters.Any())
                     {
                         var paramNames = string.Join(", ", result.Tool.Parameters.Select(p => p.Name));
-                        resultLines.Add($"   ??  Parameters: {paramNames}");
+                        resultLines.Add($"    Parameters: {paramNames}");
+
+                        // Add detailed parameter information
+                        resultLines.Add($"    Parameter details:");
+                        foreach (var param in result.Tool.Parameters)
+                        {
+                            var required = param.IsRequired ? " (required)" : " (optional)";
+                            resultLines.Add($"      • {param.Name} ({param.Type}){required}: {param.Description}");
+                        }
                     }
 
+                    // Generate exact JSON-RPC call structure for LLMs
+                    resultLines.Add($"    ");
+                    resultLines.Add($"    EXACT TOOL CALL - Use this JSON-RPC structure:");
+                    resultLines.Add($"    {{");
+                    resultLines.Add($"      \"jsonrpc\": \"2.0\",");
+                    resultLines.Add($"      \"id\": \"unique-id\",");
+                    resultLines.Add($"      \"method\": \"tools/call\",");
+                    resultLines.Add($"      \"params\": {{");
+                    //resultLines.Add($"        \"name\": \"tool_proxy_call_external_tool\",");
+                    resultLines.Add($"        \"name\": \"call_external_tool\",");
+                    resultLines.Add($"        \"arguments\": {{");
+                    resultLines.Add($"          \"serverName\": \"{result.ServerName}\",");
+                    resultLines.Add($"          \"toolName\": \"{result.Tool.Name}\",");
+
+                    if (result.Tool.Parameters.Any())
+                    {
+                        resultLines.Add($"          \"parameters\": {{");
+
+                        var parameterExamples = result.Tool.Parameters.Select(p =>
+                        {
+                            var example = GetParameterExample(p.Type, p.Description);
+                            return $"            \"{p.Name}\": {example}";
+                        });
+
+                        resultLines.Add(string.Join(",\n", parameterExamples));
+                        resultLines.Add($"          }}");
+                    }
+                    else
+                    {
+                        resultLines.Add($"          \"parameters\": {{}}");
+                    }
+
+                    resultLines.Add($"        }}");
+                    resultLines.Add($"      }}");
+                    resultLines.Add($"    }}");
                     resultLines.Add("");
                 }
 
@@ -61,6 +104,22 @@ namespace ToolProxy.Tools
                 _logger.LogError(ex, "Error performing semantic search for query: {Query}", query);
                 return $"Error performing semantic search: {ex.Message}";
             }
+        }
+
+        private static string GetParameterExample(string type, string description)
+        {
+            return type.ToLowerInvariant() switch
+            {
+                "string" => $"\"<{description.ToLowerInvariant().Replace(" ", "_")}>\"",
+                "int" or "integer" => "0",
+                "float" or "double" or "number" => "0.0",
+                "bool" or "boolean" => "false",
+                "array" => "[]",
+                "object" => "{}",
+                _ when type.Contains("[]") => "[]",
+                _ when type.Contains("object") || type.Contains("Object") => "{}",
+                _ => $"\"<{type.ToLowerInvariant()}>\""
+            };
         }
 
         [McpServerTool, Description("Get detailed information about tool indexing service")]
@@ -82,18 +141,10 @@ namespace ToolProxy.Tools
                 ""
             };
 
-            if (serviceType.Contains("SemanticKernel"))
-            {
-                info.Add("?? Semantic search capabilities enabled");
-                info.Add("   • Vector-based similarity search");
-                info.Add("   • Natural language queries");
-                info.Add("   • Relevance scoring");
-            }
-            else
-            {
-                info.Add("?? Basic text-based search only");
-                info.Add("   • Use --semantic-kernel flag to enable AI-powered search");
-            }
+            info.Add("Semantic search capabilities enabled");
+            info.Add("   • Vector-based similarity search");
+            info.Add("   • Natural language queries");
+            info.Add("   • Relevance scoring");
 
             info.Add("");
             info.Add("Available servers:");
