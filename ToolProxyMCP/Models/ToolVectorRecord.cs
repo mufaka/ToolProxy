@@ -65,7 +65,7 @@ namespace ToolProxy.Models
         /// Timestamp when this record was last updated.
         /// </summary>
         [JsonPropertyName("last_updated")]
-        public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+        public DateTime LastUpdated { get; set; } = DateTime.Now;
 
         /// <summary>
         /// Creates a unique ID for the tool record.

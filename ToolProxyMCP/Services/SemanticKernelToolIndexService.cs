@@ -17,7 +17,7 @@ namespace ToolProxy.Services
         private readonly ITextEmbeddingGenerationService _embeddingService;
         private readonly SemanticKernelSettings _settings;
         private readonly ILogger<SemanticKernelToolIndexService> _logger;
-        
+
         // Cache for fast tool lookup
         private readonly ConcurrentDictionary<string, IReadOnlyList<ToolInfo>> _toolCache = new();
         private readonly ConcurrentDictionary<string, ToolVectorRecord> _vectorRecordCache = new();
@@ -115,7 +115,7 @@ namespace ToolProxy.Services
                 foreach (var record in _vectorRecordCache.Values)
                 {
                     var similarity = CalculateCosineSimilarity(queryEmbedding.Span, record.Embedding.Span);
-                    
+
                     if (similarity >= minRelevanceScore)
                     {
                         var toolInfo = new ToolInfo(
@@ -234,7 +234,7 @@ namespace ToolProxy.Services
                 ParameterCount = tool.Parameters.Count,
                 ParameterNames = parameterNames,
                 Embedding = embedding,
-                LastUpdated = DateTime.UtcNow
+                LastUpdated = DateTime.Now
             };
         }
 

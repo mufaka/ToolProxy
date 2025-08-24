@@ -15,7 +15,7 @@ public interface IKernelAgentService
     Task InitializeAsync();
     Task<string> InvokeAsync(string prompt);
     IAsyncEnumerable<string> InvokeStreamingAsync(string prompt);
-    Task<List<ChatMessage>> GetHistoryAsync();
+    // Task<List<ChatMessage>> GetHistoryAsync(); // see TODO below in implementation
     Task ClearHistoryAsync();
 }
 
@@ -25,8 +25,8 @@ public class KernelAgentService : IKernelAgentService
     private readonly ILogger<KernelAgentService> _logger;
     private Kernel? _kernel;
     private IMcpClient? _mcpClient;
-    private readonly List<ChatMessage> _history = new();
-    private readonly StringBuilder _conversationHistory = new();
+    private ChatCompletionAgent? _agent;
+    private ChatHistoryAgentThread? _agentThread;
 
     public KernelAgentService(ChatConfiguration config, ILogger<KernelAgentService> logger)
     {
@@ -72,9 +72,7 @@ public class KernelAgentService : IKernelAgentService
                 _logger.LogInformation("Added {FunctionCount} functions to kernel", availableTools.Count);
             }
 
-            // Initialize conversation with system prompt
-            _conversationHistory.AppendLine(_config.Agent.SystemPrompt);
-            _conversationHistory.AppendLine();
+            InitializeAgent();
 
             _logger.LogInformation("Kernel Agent Service initialized successfully");
         }
@@ -83,6 +81,27 @@ public class KernelAgentService : IKernelAgentService
             _logger.LogError(ex, "Failed to initialize Kernel Agent Service");
             throw;
         }
+    }
+
+    private void InitializeAgent()
+    {
+        // Create execution settings
+        var executionSettings = new OllamaPromptExecutionSettings
+        {
+            Temperature = (float)_config.Ollama.Temperature,
+            FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(options: new() { RetainArgumentTypes = true })
+        };
+
+        // Create the ChatCompletionAgent with system prompt and kernel
+        _agent = new()
+        {
+            Instructions = _config.Agent.SystemPrompt,
+            Name = "ToolProxyAgent",
+            Kernel = _kernel!, // kernel cannot be null here
+            Arguments = new KernelArguments(executionSettings),
+        };
+
+        _agentThread = new ChatHistoryAgentThread();
     }
 
     public async Task<string> InvokeAsync(string prompt)
@@ -94,30 +113,13 @@ public class KernelAgentService : IKernelAgentService
         var userMessage = new ChatMessage
         {
             Content = prompt,
-            Role = ChatRole.User,
-            Timestamp = DateTime.UtcNow
-        };
-        _history.Add(userMessage);
-
-        // Create execution settings
-        var executionSettings = new OllamaPromptExecutionSettings
-        {
-            Temperature = (float)_config.Ollama.Temperature,
-            FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(options: new() { RetainArgumentTypes = true })
-        };
-
-        // Create the ChatCompletionAgent
-        ChatCompletionAgent agent = new()
-        {
-            Instructions = _config.Agent.SystemPrompt,
-            Name = "ToolProxyAgent",
-            Kernel = _kernel,
-            Arguments = new KernelArguments(executionSettings),
+            Role = ChatRole.User, // what is the difference between ChatRole and AuthorRole?
+            Timestamp = DateTime.Now
         };
 
         // Get the response from the agent (it returns IAsyncEnumerable)
         var responseBuilder = new StringBuilder();
-        await foreach (var responseItem in agent.InvokeAsync(prompt))
+        await foreach (var responseItem in _agent!.InvokeAsync(prompt, _agentThread))
         {
             // Try to access the actual content from the response item
             if (responseItem.Message.Content != null)
@@ -136,12 +138,6 @@ public class KernelAgentService : IKernelAgentService
             Role = ChatRole.Assistant,
             Timestamp = DateTime.Now
         };
-        _history.Add(assistantMessage);
-
-        // Update conversation history
-        _conversationHistory.AppendLine($"User: {prompt}");
-        _conversationHistory.AppendLine($"Assistant: {assistantResponse}");
-        _conversationHistory.AppendLine();
 
         return assistantResponse;
     }
@@ -156,14 +152,8 @@ public class KernelAgentService : IKernelAgentService
         {
             Content = prompt,
             Role = ChatRole.User,
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.Now
         };
-        _history.Add(userMessage);
-
-        // Build conversation prompt
-        _conversationHistory.AppendLine($"User: {prompt}");
-
-        var fullPrompt = _conversationHistory.ToString();
 
         // Create execution settings - fix Temperature and remove MaxTokens
         var executionSettings = new OllamaPromptExecutionSettings
@@ -174,7 +164,7 @@ public class KernelAgentService : IKernelAgentService
         var responseBuilder = new StringBuilder();
 
         // Stream the response
-        await foreach (var chunk in _kernel.InvokePromptStreamingAsync(fullPrompt, new(executionSettings)))
+        await foreach (var chunk in _kernel.InvokePromptStreamingAsync(prompt, new(executionSettings)))
         {
             var content = chunk.ToString();
             responseBuilder.Append(content);
@@ -188,24 +178,20 @@ public class KernelAgentService : IKernelAgentService
         {
             Content = fullResponse,
             Role = ChatRole.Assistant,
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.Now
         };
-        _history.Add(assistantMessage);
-
-        // Update conversation history
-        _conversationHistory.AppendLine($"Assistant: {fullResponse}");
-        _conversationHistory.AppendLine();
     }
 
+    // TODO: Bring this back but use _agentThread to get history
+    /*
     public Task<List<ChatMessage>> GetHistoryAsync() =>
         Task.FromResult(_history.ToList());
+    */
 
     public Task ClearHistoryAsync()
     {
-        _history.Clear();
-        _conversationHistory.Clear();
-        _conversationHistory.AppendLine(_config.Agent.SystemPrompt);
-        _conversationHistory.AppendLine();
+        // TODO: This should create a new ChatHistoryAgentThread.
+
         return Task.CompletedTask;
     }
 }

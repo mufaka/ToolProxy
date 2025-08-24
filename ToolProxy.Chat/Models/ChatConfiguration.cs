@@ -30,7 +30,7 @@ public record ChatMessage
     public string Id { get; init; } = Guid.NewGuid().ToString();
     public string Content { get; init; } = string.Empty;
     public ChatRole Role { get; init; }
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTime Timestamp { get; init; } = DateTime.Now;
 }
 
 public enum ChatRole
