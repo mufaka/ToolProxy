@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ToolProxy.Chat.ViewModels"
+        x:Class="ToolProxy.Chat.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="ToolProxy Chat" Width="1000" Height="700"
+        MinWidth="800" MinHeight="600">
+
+  <Grid RowDefinitions="Auto,*,Auto,Auto">
+    
+    <!-- Toolbar -->
+    <Border Grid.Row="0" Background="#2196F3" Padding="15,10">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Text="ToolProxy Chat Assistant" 
+                   VerticalAlignment="Center" Foreground="White" FontWeight="Bold" FontSize="16"/>
+        <Button Grid.Column="1" Content="Clear History" 
+                Command="{Binding ClearHistoryCommand}"
+                Background="Transparent" Foreground="White" BorderBrush="White"/>
+      </Grid>
+    </Border>
+
+    <!-- Chat Messages -->
+    <ScrollViewer Grid.Row="1" Name="ChatScrollViewer" VerticalScrollBarVisibility="Auto">
+      <ItemsControl ItemsSource="{Binding Messages}" Margin="10">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Margin="5" Padding="15" CornerRadius="10" MaxWidth="800"
+                    Background="{Binding Role, Converter={x:Static vm:MainWindowViewModel.MessageBackgroundConverter}}"
+                    HorizontalAlignment="{Binding Role, Converter={x:Static vm:MainWindowViewModel.MessageAlignmentConverter}}">
+              <StackPanel>
+                <TextBlock Text="{Binding Role}" FontWeight="Bold" FontSize="12" 
+                          Foreground="#666" Margin="0,0,0,5"/>
+                <TextBlock Text="{Binding Content}" TextWrapping="Wrap" 
+                          FontSize="14" LineHeight="20"/>
+                <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}" 
+                          FontSize="10" Opacity="0.6" HorizontalAlignment="Right" Margin="0,5,0,0"/>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <!-- Input Area -->
+    <Border Grid.Row="2" Background="#F8F9FA" BorderBrush="#E9ECEF" 
+            BorderThickness="0,1,0,0" Padding="15">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox Grid.Column="0" x:Name="MessageInput" 
+                 Text="{Binding CurrentMessage}" 
+                 Watermark="Type your message here... (Enter to send, Shift+Enter for new line)"
+                 AcceptsReturn="True" MaxHeight="100"
+                 KeyDown="MessageInput_KeyDown"
+                 VerticalAlignment="Center"/>
+        <Button Grid.Column="1" Content="Send" Margin="10,0,0,0"
+                Command="{Binding SendMessageCommand}"
+                IsEnabled="{Binding !IsProcessing}"/>
+      </Grid>
+    </Border>
+
+    <!-- Status Bar -->
+    <Border Grid.Row="3" Background="#343A40" Padding="15,8">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" 
+                   VerticalAlignment="Center" Foreground="White"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
+          <TextBlock Text="Status: " VerticalAlignment="Center" Foreground="White"/>
+          <Ellipse Width="8" Height="8" 
+                   Fill="{Binding IsConnected, Converter={x:Static vm:MainWindowViewModel.BooleanToBrushConverter}}"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>
