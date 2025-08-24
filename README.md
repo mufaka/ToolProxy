@@ -6,6 +6,8 @@ A comprehensive solution for intelligent tool discovery and AI-powered chat inte
 
 This solution consists of two interconnected components that work together to provide an enhanced AI assistant experience with access to a wide variety of tools:
 
+<img width="2161" height="1962" alt="image" src="https://github.com/user-attachments/assets/3ba0641d-855d-46c0-8be9-90002b9856d7" />
+
 ### 🛠️ [ToolProxy MCP Server](ToolProxyMCP/README.md)
 A sophisticated MCP server that acts as a proxy and aggregator for multiple external MCP servers, enhanced with AI-powered semantic search capabilities.
 
