@@ -18,31 +18,6 @@ namespace ToolProxy.Tools
             _logger = logger;
         }
 
-        [McpServerTool, Description("Search for available tools across all MCP servers using text matching")]
-        public async Task<string> SearchToolsAsync(
-            [Description("Search query for tool names or descriptions")] string query,
-            CancellationToken cancellationToken = default)
-        {
-            var allTools = await _toolIndexService.GetAllExternalToolsAsync();
-            var matchingTools = new List<string>();
-
-            foreach (var (serverName, tools) in allTools)
-            {
-                foreach (var tool in tools)
-                {
-                    if (tool.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                        tool.Description.Contains(query, StringComparison.OrdinalIgnoreCase))
-                    {
-                        matchingTools.Add($"{serverName}.{tool.Name}: {tool.Description}");
-                    }
-                }
-            }
-
-            return matchingTools.Any()
-                ? string.Join("\n", matchingTools)
-                : $"No tools found matching '{query}'";
-        }
-
         [McpServerTool, Description("Search for tools using semantic similarity (requires Semantic Kernel implementation)")]
         public async Task<string> SearchToolsSemanticAsync(
             [Description("Natural language description of the functionality you're looking for")] string query,
@@ -53,7 +28,7 @@ namespace ToolProxy.Tools
             try
             {
                 var results = await _toolIndexService.SearchToolsSemanticAsync(query, maxResults, minRelevanceScore);
-                
+
                 if (!results.Any())
                 {
                     return $"No tools found with semantic similarity to '{query}' (min score: {minRelevanceScore})";
@@ -69,13 +44,13 @@ namespace ToolProxy.Tools
                 {
                     resultLines.Add($"?? {result.ServerName}.{result.Tool.Name} (Score: {result.RelevanceScore:F3})");
                     resultLines.Add($"   ?? {result.Tool.Description}");
-                    
+
                     if (result.Tool.Parameters.Any())
                     {
                         var paramNames = string.Join(", ", result.Tool.Parameters.Select(p => p.Name));
                         resultLines.Add($"   ??  Parameters: {paramNames}");
                     }
-                    
+
                     resultLines.Add("");
                 }
 
@@ -94,7 +69,7 @@ namespace ToolProxy.Tools
             var serviceType = _toolIndexService.GetType().Name;
             var isReady = _toolIndexService.IsIndexReady;
             var allTools = await _toolIndexService.GetAllExternalToolsAsync();
-            
+
             var totalTools = allTools.Values.Sum(tools => tools.Count);
             var serverCount = allTools.Count;
 
@@ -122,7 +97,7 @@ namespace ToolProxy.Tools
 
             info.Add("");
             info.Add("Available servers:");
-            
+
             foreach (var (serverName, tools) in allTools)
             {
                 info.Add($"  • {serverName}: {tools.Count} tools");
@@ -149,7 +124,7 @@ namespace ToolProxy.Tools
                 await _toolIndexService.RefreshIndexAsync();
                 var allTools = await _toolIndexService.GetAllExternalToolsAsync();
                 var totalTools = allTools.Values.Sum(tools => tools.Count);
-                
+
                 return $"Tool index refreshed successfully. Found {allTools.Count} servers with {totalTools} total tools.";
             }
             catch (Exception ex)
