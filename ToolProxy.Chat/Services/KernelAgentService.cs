@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Connectors.Ollama;
 using ModelContextProtocol.Client;
 using System.Text;
@@ -60,15 +61,16 @@ public class KernelAgentService : IKernelAgentService
                 modelId: _config.Ollama.ModelName,
                 endpoint: new Uri(_config.Ollama.BaseUrl));
 
+
+            _kernel = builder.Build();
+
             // Add MCP tools as kernel functions
             if (availableTools.Any())
             {
                 var kernelFunctions = availableTools.Select(tool => tool.AsKernelFunction());
-                builder.Plugins.AddFromFunctions("ToolProxy", kernelFunctions);
+                _kernel.Plugins.AddFromFunctions("ToolProxy", kernelFunctions);
                 _logger.LogInformation("Added {FunctionCount} functions to kernel", availableTools.Count);
             }
-
-            _kernel = builder.Build();
 
             // Initialize conversation with system prompt
             _conversationHistory.AppendLine(_config.Agent.SystemPrompt);
@@ -97,32 +99,47 @@ public class KernelAgentService : IKernelAgentService
         };
         _history.Add(userMessage);
 
-        // Build conversation prompt
-        _conversationHistory.AppendLine($"User: {prompt}");
-
-        var fullPrompt = _conversationHistory.ToString();
-
-        // Create execution settings - fix Temperature and remove MaxTokens
+        // Create execution settings
         var executionSettings = new OllamaPromptExecutionSettings
         {
-            Temperature = (float)_config.Ollama.Temperature
+            Temperature = (float)_config.Ollama.Temperature,
+            FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(options: new() { RetainArgumentTypes = true })
         };
 
-        // Invoke kernel
-        var result = await _kernel.InvokePromptAsync(fullPrompt, new(executionSettings));
+        // Create the ChatCompletionAgent
+        ChatCompletionAgent agent = new()
+        {
+            Instructions = _config.Agent.SystemPrompt,
+            Name = "ToolProxyAgent",
+            Kernel = _kernel,
+            Arguments = new KernelArguments(executionSettings),
+        };
 
-        var assistantResponse = result.ToString();
+        // Get the response from the agent (it returns IAsyncEnumerable)
+        var responseBuilder = new StringBuilder();
+        await foreach (var responseItem in agent.InvokeAsync(prompt))
+        {
+            // Try to access the actual content from the response item
+            if (responseItem.Message.Content != null)
+            {
+                responseBuilder.Append(responseItem.Message.Content);
+            }
+        }
+
+        // Extract the complete response content
+        var assistantResponse = responseBuilder.ToString();
 
         // Add assistant response to history
         var assistantMessage = new ChatMessage
         {
             Content = assistantResponse,
             Role = ChatRole.Assistant,
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.Now
         };
         _history.Add(assistantMessage);
 
         // Update conversation history
+        _conversationHistory.AppendLine($"User: {prompt}");
         _conversationHistory.AppendLine($"Assistant: {assistantResponse}");
         _conversationHistory.AppendLine();
 
