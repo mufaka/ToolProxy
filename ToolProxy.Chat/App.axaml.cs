@@ -25,6 +25,11 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var mainWindow = host.Services.GetRequiredService<MainWindow>();
+            var mainWindowViewModel = host.Services.GetRequiredService<MainWindowViewModel>();
+
+            // Set the DataContext to connect the View and ViewModel
+            mainWindow.DataContext = mainWindowViewModel;
+
             desktop.MainWindow = mainWindow;
         }
 

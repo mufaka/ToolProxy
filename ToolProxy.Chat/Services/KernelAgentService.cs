@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.Ollama;
 using ModelContextProtocol.Client;
-using System.Runtime.CompilerServices;
 using System.Text;
 using ToolProxy.Chat.Models;
 
@@ -110,7 +109,7 @@ public class KernelAgentService : IKernelAgentService
         };
 
         // Invoke kernel
-        var result = await _kernel.InvokePromptAsync(fullPrompt, new(executionSettings)).ConfigureAwait(false);
+        var result = await _kernel.InvokePromptAsync(fullPrompt, new(executionSettings));
 
         var assistantResponse = result.ToString();
 

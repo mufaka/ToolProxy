@@ -1,5 +1,6 @@
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using Avalonia.Threading;
 using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Reactive;
@@ -10,46 +11,73 @@ namespace ToolProxy.Chat.ViewModels;
 
 public class MainWindowViewModel : ViewModelBase
 {
-    private readonly IKernelAgentService _agentService;
+    private readonly IKernelAgentService? _agentService;
     private string _currentMessage = string.Empty;
     private string _statusMessage = "Initializing...";
     private bool _isProcessing;
     private bool _isConnected;
 
+
+    public MainWindowViewModel()
+    {
+        _agentService = null;
+
+        // Simple commands for design-time
+        SendMessageCommand = ReactiveCommand.Create(() => { });
+        ClearHistoryCommand = ReactiveCommand.Create(() => { });
+
+        StatusMessage = "Design-time mode";
+    }
+
+    // Runtime constructor for dependency injection
     public MainWindowViewModel(IKernelAgentService agentService)
     {
         _agentService = agentService;
 
-        SendMessageCommand = ReactiveCommand.CreateFromTask(SendMessageAsync);
-        ClearHistoryCommand = ReactiveCommand.CreateFromTask(ClearHistoryAsync);
+        // Use MainThreadScheduler to ensure commands run on UI thread
+        SendMessageCommand = ReactiveCommand.CreateFromTask(SendMessageAsync, outputScheduler: RxApp.MainThreadScheduler);
+        //SendMessageCommand = ReactiveCommand.Create(() => { /* do nothing */ });
+        ClearHistoryCommand = ReactiveCommand.CreateFromTask(ClearHistoryAsync, outputScheduler: RxApp.MainThreadScheduler);
 
+        // Start initialization as a proper async task
         _ = InitializeAsync();
     }
 
     public ObservableCollection<ChatMessage> Messages { get; } = new();
-
     public string CurrentMessage
     {
         get => _currentMessage;
-        set => this.RaiseAndSetIfChanged(ref _currentMessage, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _currentMessage, value);
+        }
     }
 
     public string StatusMessage
     {
         get => _statusMessage;
-        set => this.RaiseAndSetIfChanged(ref _statusMessage, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _statusMessage, value);
+        }
     }
 
     public bool IsProcessing
     {
         get => _isProcessing;
-        set => this.RaiseAndSetIfChanged(ref _isProcessing, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isProcessing, value);
+        }
     }
 
     public bool IsConnected
     {
         get => _isConnected;
-        set => this.RaiseAndSetIfChanged(ref _isConnected, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isConnected, value);
+        }
     }
 
     public ReactiveCommand<Unit, Unit> SendMessageCommand { get; }
@@ -75,23 +103,38 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task InitializeAsync()
     {
+        if (_agentService == null)
+            return; // Skip initialization in design mode
+
         try
         {
-            StatusMessage = "Connecting to ToolProxy...";
+            // Update UI on the UI thread
+            await Dispatcher.UIThread.InvokeAsync(() => StatusMessage = "Connecting to ToolProxy...");
+
+            // Perform the actual initialization (can be on background thread)
             await _agentService.InitializeAsync();
-            IsConnected = true;
-            StatusMessage = "Ready - Type your message and press Enter";
+
+            // Update UI on the UI thread
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                IsConnected = true;
+                StatusMessage = "Ready - Type your message and press Enter";
+            });
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Connection failed: {ex.Message}";
-            IsConnected = false;
+            // Update UI on the UI thread
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                StatusMessage = $"Connection failed: {ex.Message}";
+                IsConnected = false;
+            });
         }
     }
 
     private async Task SendMessageAsync()
     {
-        if (string.IsNullOrWhiteSpace(CurrentMessage) || IsProcessing)
+        if (string.IsNullOrWhiteSpace(CurrentMessage) || IsProcessing || _agentService == null)
             return;
 
         var userMessage = CurrentMessage;
@@ -108,27 +151,16 @@ public class MainWindowViewModel : ViewModelBase
                 Role = ChatRole.User
             });
 
-            // Create assistant message for streaming updates
+            var response = await _agentService.InvokeAsync(userMessage);
+
+            // Add assistant response to UI
             var assistantMessage = new ChatMessage
             {
-                Content = string.Empty,
+                Content = response,
                 Role = ChatRole.Assistant
             };
+
             Messages.Add(assistantMessage);
-
-            // Stream response from kernel
-            var responseBuilder = new System.Text.StringBuilder();
-            await foreach (var chunk in _agentService.InvokeStreamingAsync(userMessage))
-            {
-                responseBuilder.Append(chunk);
-
-                // Update the last message in real-time
-                var updatedMessage = assistantMessage with
-                {
-                    Content = responseBuilder.ToString()
-                };
-                Messages[Messages.Count - 1] = updatedMessage;
-            }
 
             StatusMessage = "Ready - Type your message and press Enter";
         }
@@ -150,7 +182,10 @@ public class MainWindowViewModel : ViewModelBase
     private async Task ClearHistoryAsync()
     {
         Messages.Clear();
-        await _agentService.ClearHistoryAsync();
+        if (_agentService != null)
+        {
+            await _agentService.ClearHistoryAsync();
+        }
         StatusMessage = "History cleared - Ready for new conversation";
     }
 }
