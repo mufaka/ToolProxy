@@ -1,9 +1,18 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:themes="clr-namespace:ShadUI;assembly=ShadUI"
              x:Class="ToolProxy.Chat.App"
              RequestedThemeVariant="Default">
 
     <Application.Styles>
-        <FluentTheme />
-    </Application.Styles>
+		<FluentTheme/>
+		<themes:ShadTheme />
+	</Application.Styles>
+
+	<Application.Resources>
+		<Color x:Key="BorderColor">#3DFFFFFF</Color>
+		<Color x:Key="ForegroundColor">#FFFFFF</Color>
+		<Color x:Key="CardBackgroundColor">#FFF</Color>
+		<Color x:Key="SecondaryCardBackgroundColor">#99000000</Color>
+	</Application.Resources>
 </Application>

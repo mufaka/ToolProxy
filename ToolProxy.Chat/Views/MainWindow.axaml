@@ -19,7 +19,7 @@
   <Grid RowDefinitions="Auto,*,Auto,Auto">
     
     <!-- Toolbar -->
-    <Border Grid.Row="0" Background="#2196F3" Padding="15,10">
+    <Border Grid.Row="0" Padding="15,10">
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock Grid.Column="0" Text="ToolProxy Chat Assistant" 
                    VerticalAlignment="Center" Foreground="White" FontWeight="Bold" FontSize="16"/>
@@ -41,43 +41,20 @@
                 <TextBlock Text="{Binding Role}" FontWeight="Bold" FontSize="12" 
                           Foreground="#666" Margin="0,0,0,5"/>
 				  <md:MarkdownScrollViewer Markdown="{Binding Content}">
-					  <md:MarkdownScrollViewer.Styles>
-						  <Style Selector="Border.Blockquote">
-							  <Setter Property="BorderBrush" Value="#666" />
-							  <Setter Property="Background" Value="#CCC" />
-							  <Setter Property="BorderThickness" Value="1,1,1,1"/>
-							  <Setter Property="CornerRadius" Value="4"/>
+					  <md:MarkdownScrollViewer.MarkdownStyle>
+						  <Style>
+							  <Style Selector=".Markdown_Avalonia_MarkdownViewer TextBlock.CodeBlock">
+								  <Style.Setters>
+									  <Setter Property="Foreground" Value="White" />
+								  </Style.Setters>
+							  </Style>
+							  <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CCode">
+								  <Style.Setters>
+									  <Setter Property="Foreground" Value="White" />
+								  </Style.Setters>
+							  </Style>
 						  </Style>
-						  <Style Selector="ctxt|CCode">
-							  <Style.Setters>
-								  <Setter Property="BorderBrush"         Value="#666"/>
-								  <Setter Property="BorderThickness"     Value="1"/>
-								  <Setter Property="Padding"             Value="2"/>
-								  <Setter Property="MonospaceFontFamily" Value="Meiryo" />
-								  <Setter Property="Foreground"          Value="#666" />
-								  <Setter Property="Background"          Value="#CCC" />
-							  </Style.Setters>
-						  </Style>
-						  <Style Selector="Border.CodeBlock">
-							  <Style.Setters>
-								  <Setter Property="BorderBrush"     Value="#666"/>
-								  <Setter Property="BorderThickness" Value="1"/>
-								  <Setter Property="Padding"             Value="2"/>
-								  <Setter Property="Background"      Value="#CCC"/>
-							  </Style.Setters>
-						  </Style>
-						  <Style Selector="TextBlock.CodeBlock">
-							  <Style.Setters>
-								  <Setter Property="Foreground"      Value="#666"/>
-								  <Setter Property="Background"          Value="#CCC" />
-								  <Setter Property="FontFamily"      Value="Meiryo"/>
-							  </Style.Setters>
-						  </Style>
-						  <Style Selector="avedit|TextEditor">
-							  <Setter Property="Foreground"      Value="#666"/>
-							  <Setter Property="Background"          Value="#CCC" />
-						  </Style>
-					  </md:MarkdownScrollViewer.Styles>
+					  </md:MarkdownScrollViewer.MarkdownStyle>
 				  </md:MarkdownScrollViewer>
                 <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}"
                           Foreground="#666" FontSize="10" Opacity="0.6" HorizontalAlignment="Right" Margin="0,5,0,0"/>
@@ -89,7 +66,7 @@
     </ScrollViewer>
 
     <!-- Input Area -->
-    <Border Grid.Row="2" Background="#F8F9FA" BorderBrush="#E9ECEF" 
+    <Border Grid.Row="2"  
             BorderThickness="0,1,0,0" Padding="15">
       <Grid ColumnDefinitions="*,Auto">
         <TextBox Grid.Column="0" x:Name="MessageInput" 
