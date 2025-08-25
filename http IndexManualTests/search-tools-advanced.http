@@ -1,0 +1,73 @@
+### Test search-tools for file operations
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "read write files manage directories",
+  "maxResults": 8,
+  "minRelevanceScore": 0.25
+}
+
+### Test search-tools for web scraping
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "scrape websites extract data from web pages",
+  "maxResults": 5,
+  "minRelevanceScore": 0.3
+}
+
+### Test search-tools for database operations
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "database queries SQL data storage",
+  "maxResults": 7,
+  "minRelevanceScore": 0.35
+}
+
+### Test search-tools with very high relevance score
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "language server protocol analysis",
+  "maxResults": 3,
+  "minRelevanceScore": 0.8
+}
+
+### Test search-tools with low relevance score (more permissive)
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "utility tools helper functions",
+  "maxResults": 15,
+  "minRelevanceScore": 0.1
+}
+
+### Test search-tools for version control
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "git version control repository management",
+  "maxResults": 5,
+  "minRelevanceScore": 0.3
+}
+
+### Test search-tools minimal parameters (using defaults)
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "create generate content writing"
+}
+
+### Check tool index status before testing
+GET http://localhost:3030/tool-index-info
+
+### Check server health
+GET http://localhost:3030/health

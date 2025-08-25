@@ -1,0 +1,53 @@
+### Test basic search-tools endpoint
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "find tools that can help me send emails or notifications"
+}
+
+### Test search-tools with custom parameters
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "analyze code structure and find functions",
+  "maxResults": 10,
+  "minRelevanceScore": 0.2
+}
+
+### Test search-tools for documentation tools
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "documentation and reference materials",
+  "maxResults": 5,
+  "minRelevanceScore": 0.3
+}
+
+### Test search-tools for task planning
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "break down complex tasks into smaller steps",
+  "maxResults": 3,
+  "minRelevanceScore": 0.4
+}
+
+### Test search-tools with empty prompt (should fail)
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": ""
+}
+
+### Test search-tools with whitespace only prompt (should fail)
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "   "
+}
