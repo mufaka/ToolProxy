@@ -57,7 +57,7 @@ namespace ToolProxy.Services
         public async Task<IReadOnlyList<ToolSearchResult>> SearchToolsSemanticAsync(
             string query,
             int maxResults = 5,
-            float minRelevanceScore = 0.6f)
+            float minRelevanceScore = 0.55f)
         {
             try
             {

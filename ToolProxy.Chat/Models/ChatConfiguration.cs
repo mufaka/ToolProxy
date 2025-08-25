@@ -10,8 +10,8 @@ public class ChatConfiguration
 public class OllamaConfiguration
 {
     public string BaseUrl { get; set; } = "http://localhost:11434";
-    public string ModelName { get; set; } = "llama3.2:3b";
-    public double Temperature { get; set; } = 0.7;
+    public string ModelName { get; set; } = "nomic-embed-text";
+    public double Temperature { get; set; } = 0.2;
 }
 
 public class ToolProxyConfiguration

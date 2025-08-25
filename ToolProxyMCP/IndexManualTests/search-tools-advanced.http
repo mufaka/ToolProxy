@@ -43,9 +43,9 @@ POST http://localhost:3030/search-tools
 Content-Type: application/json
 
 {
-  "prompt": "utility tools helper functions",
+  "prompt": "context7 SemanticKernel VectorStoreData documentation",
   "maxResults": 15,
-  "minRelevanceScore": 0.1
+  "minRelevanceScore": 0.5
 }
 
 ### Test search-tools for sequential thinking

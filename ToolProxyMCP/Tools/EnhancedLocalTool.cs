@@ -18,9 +18,9 @@ namespace ToolProxy.Tools
             _logger = logger;
         }
 
-        [McpServerTool, Description("Search for tools using semantic similarity (requires Semantic Kernel implementation)")]
+        [McpServerTool, Description("Search for tools using semantic similarity. You should be overly verbose when calling this tool to get efficient results.")]
         public async Task<string> SearchToolsSemanticAsync(
-            [Description("Natural language description of the functionality you're looking for")] string query,
+            [Description("Natural language description of the functionality you're looking for. Be overly verbose, include any suggested tools, and reason about what the user is looking for.")] string query,
             [Description("Maximum number of results to return (default: 5)")] int maxResults = 5,
             [Description("Minimum relevance score between 0.0 and 1.0 (default: 0.55)")] float minRelevanceScore = 0.55f,
             CancellationToken cancellationToken = default)
@@ -165,7 +165,7 @@ namespace ToolProxy.Tools
             return await _toolIndexService.CallExternalToolAsync(serverName, toolName, parameters, cancellationToken);
         }
 
-        [McpServerTool, Description("Refresh the tool index to pick up any new or updated tools")]
+        [McpServerTool, Description("Refresh the tool index to pick up any new or updated tools. You should rarely need to call this unless you are prompted to.")]
         public async Task<string> RefreshToolIndexAsync(CancellationToken cancellationToken = default)
         {
             try

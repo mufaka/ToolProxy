@@ -109,6 +109,12 @@ public class KernelAgentService : IKernelAgentService
         if (_kernel == null)
             throw new InvalidOperationException("Kernel not initialized. Call InitializeAsync first.");
 
+        // can we be smarter about giving hints on the tools to use based on the prompt?
+        // if a prompt names a specific server, we should coerce the LLM to include that name with the semantic search call.
+        // but do we need to know the intent of the server mention? what if the server name is generic, like 'fetch'?
+
+        // maybe we can just tell the LLM to be overly verbose when using semantic search?
+
         // Add user message to history
         var userMessage = new ChatMessage
         {
