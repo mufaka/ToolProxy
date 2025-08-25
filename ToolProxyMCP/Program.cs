@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,8 @@ using ToolProxy.Services;
 
 namespace ToolProxy
 {
+    public record SearchToolsRequest(string Prompt, int MaxResults = 5, float MinRelevanceScore = 0.3f);
+
     internal class Program
     {
         static async Task Main(string[] args)
@@ -61,6 +64,54 @@ namespace ToolProxy
                 ServiceType = toolIndexService.GetType().Name,
                 IsSemanticKernelEnabled = true,
                 IsIndexReady = toolIndexService.IsIndexReady
+            });
+
+            app.MapPost("/search-tools", async (SearchToolsRequest request, IToolIndexService toolIndexService) =>
+            {
+                if (!toolIndexService.IsIndexReady)
+                {
+                    return Results.BadRequest("Tool index is not ready. Please wait for indexing to complete.");
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Prompt))
+                {
+                    return Results.BadRequest("Prompt cannot be empty.");
+                }
+
+                try
+                {
+                    var searchResults = await toolIndexService.SearchToolsSemanticAsync(
+                        request.Prompt,
+                        request.MaxResults,
+                        request.MinRelevanceScore);
+
+                    var response = new
+                    {
+                        Query = request.Prompt,
+                        MaxResults = request.MaxResults,
+                        MinRelevanceScore = request.MinRelevanceScore,
+                        Tools = searchResults.Select(result => new
+                        {
+                            ServerName = result.ServerName,
+                            Name = result.Tool.Name,
+                            Description = result.Tool.Description,
+                            RelevanceScore = result.RelevanceScore,
+                            Parameters = result.Tool.Parameters.Select(p => new
+                            {
+                                Name = p.Name,
+                                Type = p.Type,
+                                Description = p.Description,
+                                Required = p.IsRequired
+                            })
+                        }).ToList()
+                    };
+
+                    return Results.Ok(response);
+                }
+                catch (Exception ex)
+                {
+                    return Results.Problem($"Error searching tools: {ex.Message}");
+                }
             });
 
             // Configure the server to listen on the specified port
