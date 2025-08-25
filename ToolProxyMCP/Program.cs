@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel.Embeddings;
+using OllamaSharp;
 using ToolProxy.Configuration;
 using ToolProxy.Services;
 
@@ -63,16 +64,10 @@ namespace ToolProxy
             {
                 ServiceType = toolIndexService.GetType().Name,
                 IsSemanticKernelEnabled = true,
-                IsIndexReady = toolIndexService.IsIndexReady
             });
 
             app.MapPost("/search-tools", async (SearchToolsRequest request, IToolIndexService toolIndexService) =>
             {
-                if (!toolIndexService.IsIndexReady)
-                {
-                    return Results.BadRequest("Tool index is not ready. Please wait for indexing to complete.");
-                }
-
                 if (string.IsNullOrWhiteSpace(request.Prompt))
                 {
                     return Results.BadRequest("Prompt cannot be empty.");
@@ -134,14 +129,16 @@ namespace ToolProxy
                 client.Timeout = TimeSpan.FromMinutes(5); // Embedding generation can take time
             });
 
-            // Register Ollama embedding service
-            services.AddSingleton<ITextEmbeddingGenerationService>(serviceProvider =>
+            // inject the OllamaSharp client as IEmbeddingGenerator. It implements several interfaces including the IEmbeddingGenerator that
+            // we need to get embeddings for semantic search. ITextEmbeddingGenerationService is deprecated.
+            services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(serviceProvider =>
             {
                 var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
                 var httpClient = httpClientFactory.CreateClient("Ollama");
-                var logger = serviceProvider.GetRequiredService<ILogger<OllamaTextEmbeddingGenerationService>>();
+                var ollamaClient = new OllamaApiClient(httpClient, settings.Ollama.ModelName);
 
-                return new OllamaTextEmbeddingGenerationService(httpClient, settings.Ollama.ModelName, logger);
+                IEmbeddingGenerator<string, Embedding<float>> generator = ollamaClient;
+                return generator;
             });
 
             // Register the Semantic Kernel-based tool index service

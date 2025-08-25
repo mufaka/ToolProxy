@@ -126,8 +126,7 @@ namespace ToolProxy.Tools
         public async Task<string> GetToolIndexInfoAsync(CancellationToken cancellationToken = default)
         {
             var serviceType = _toolIndexService.GetType().Name;
-            var isReady = _toolIndexService.IsIndexReady;
-            var allTools = await _toolIndexService.GetAllExternalToolsAsync();
+            var allTools = _toolIndexService.GetAllExternalToolsAsync();
 
             var totalTools = allTools.Values.Sum(tools => tools.Count);
             var serverCount = allTools.Count;
@@ -135,7 +134,6 @@ namespace ToolProxy.Tools
             var info = new List<string>
             {
                 $"Tool Index Service: {serviceType}",
-                $"Index Ready: {isReady}",
                 $"Total Servers: {serverCount}",
                 $"Total Tools: {totalTools}",
                 ""
@@ -173,7 +171,7 @@ namespace ToolProxy.Tools
             try
             {
                 await _toolIndexService.RefreshIndexAsync();
-                var allTools = await _toolIndexService.GetAllExternalToolsAsync();
+                var allTools = _toolIndexService.GetAllExternalToolsAsync();
                 var totalTools = allTools.Values.Sum(tools => tools.Count);
 
                 return $"Tool index refreshed successfully. Found {allTools.Count} servers with {totalTools} total tools.";

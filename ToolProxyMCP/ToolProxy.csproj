@@ -22,6 +22,8 @@
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.InMemory" Version="1.63.0-preview" />
     <PackageReference Include="ModelContextProtocol" Version="0.3.0-preview.4" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.3.0-preview.4" />
+    <PackageReference Include="OllamaSharp" Version="5.3.6" />
+    <PackageReference Include="System.Linq.Async" Version="6.0.3" />
   </ItemGroup>
 
   <ItemGroup>

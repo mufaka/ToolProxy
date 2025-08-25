@@ -1,3 +1,4 @@
+using Microsoft.Extensions.VectorData;
 using System.Text.Json.Serialization;
 
 namespace ToolProxy.Models
@@ -11,60 +12,70 @@ namespace ToolProxy.Models
         /// Unique identifier for the tool record. Format: {ServerName}.{ToolName}
         /// </summary>
         [JsonPropertyName("id")]
+        [VectorStoreKey]
         public string Id { get; set; } = string.Empty;
 
         /// <summary>
         /// Name of the MCP server that provides this tool.
         /// </summary>
         [JsonPropertyName("server_name")]
+        [VectorStoreData]
         public string ServerName { get; set; } = string.Empty;
 
         /// <summary>
         /// Name of the tool.
         /// </summary>
         [JsonPropertyName("tool_name")]
+        [VectorStoreData]
         public string ToolName { get; set; } = string.Empty;
 
         /// <summary>
         /// Description of what the tool does.
         /// </summary>
         [JsonPropertyName("description")]
+        [VectorStoreData]
         public string Description { get; set; } = string.Empty;
 
         /// <summary>
         /// Concatenated text used for generating embeddings (tool name + description).
         /// </summary>
         [JsonPropertyName("searchable_text")]
+        [VectorStoreData]
         public string SearchableText { get; set; } = string.Empty;
 
         /// <summary>
         /// JSON representation of tool parameters for detailed information.
         /// </summary>
         [JsonPropertyName("parameters_json")]
+        [VectorStoreData]
         public string ParametersJson { get; set; } = string.Empty;
 
         /// <summary>
         /// Number of parameters the tool accepts.
         /// </summary>
         [JsonPropertyName("parameter_count")]
+        [VectorStoreData]
         public int ParameterCount { get; set; }
 
         /// <summary>
         /// Comma-separated list of parameter names.
         /// </summary>
         [JsonPropertyName("parameter_names")]
+        [VectorStoreData]
         public string ParameterNames { get; set; } = string.Empty;
 
         /// <summary>
         /// Vector embedding of the searchable text for semantic similarity search.
         /// </summary>
         [JsonPropertyName("embedding")]
+        [VectorStoreVector(Dimensions: 512, DistanceFunction = DistanceFunction.CosineSimilarity, IndexKind = IndexKind.Hnsw)]
         public ReadOnlyMemory<float> Embedding { get; set; }
 
         /// <summary>
         /// Timestamp when this record was last updated.
         /// </summary>
         [JsonPropertyName("last_updated")]
+        [VectorStoreData]
         public DateTime LastUpdated { get; set; } = DateTime.Now;
 
         /// <summary>

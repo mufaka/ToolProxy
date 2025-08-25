@@ -23,7 +23,7 @@ POST http://localhost:3030/search-tools
 Content-Type: application/json
 
 {
-  "prompt": "database queries SQL data storage",
+  "prompt": "database queries SQL data storage table info",
   "maxResults": 7,
   "minRelevanceScore": 0.35
 }
@@ -35,7 +35,7 @@ Content-Type: application/json
 {
   "prompt": "language server protocol analysis",
   "maxResults": 3,
-  "minRelevanceScore": 0.8
+  "minRelevanceScore": 0.7
 }
 
 ### Test search-tools with low relevance score (more permissive)

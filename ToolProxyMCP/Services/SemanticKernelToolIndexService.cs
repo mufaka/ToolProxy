@@ -1,5 +1,6 @@
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel.Embeddings;
+using Microsoft.SemanticKernel.Connectors.InMemory;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using ToolProxy.Configuration;
@@ -14,75 +15,36 @@ namespace ToolProxy.Services
     public class SemanticKernelToolIndexService : IToolIndexService
     {
         private readonly IMcpManager _mcpManager;
-        private readonly ITextEmbeddingGenerationService _embeddingService;
+        private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddingGenerator;
         private readonly SemanticKernelSettings _settings;
         private readonly ILogger<SemanticKernelToolIndexService> _logger;
+        private readonly InMemoryVectorStore _vectorStore;
 
         // Cache for fast tool lookup
         private readonly ConcurrentDictionary<string, IReadOnlyList<ToolInfo>> _toolCache = new();
-        private readonly ConcurrentDictionary<string, ToolVectorRecord> _vectorRecordCache = new();
-        private volatile bool _isIndexReady;
-        private readonly SemaphoreSlim _indexingSemaphore = new(1, 1);
 
         public SemanticKernelToolIndexService(
             IMcpManager mcpManager,
-            ITextEmbeddingGenerationService embeddingService,
+            IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator,
             SemanticKernelSettings settings,
             ILogger<SemanticKernelToolIndexService> logger)
         {
             _mcpManager = mcpManager ?? throw new ArgumentNullException(nameof(mcpManager));
-            _embeddingService = embeddingService ?? throw new ArgumentNullException(nameof(embeddingService));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _embeddingGenerator = embeddingGenerator ?? throw new ArgumentNullException(nameof(embeddingGenerator));
+            _vectorStore = new InMemoryVectorStore();
         }
 
-        public bool IsIndexReady => _isIndexReady;
 
-        public async Task<IReadOnlyDictionary<string, IReadOnlyList<ToolInfo>>> GetAllExternalToolsAsync()
+        public IReadOnlyDictionary<string, IReadOnlyList<ToolInfo>> GetAllExternalToolsAsync()
         {
-            if (!_isIndexReady)
-            {
-                await RefreshIndexAsync();
-            }
-
             return _toolCache.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
 
-        public async Task<IReadOnlyList<ToolInfo>?> GetServerToolsAsync(string serverName)
+        public IReadOnlyList<ToolInfo>? GetServerToolsAsync(string serverName)
         {
-            if (!_isIndexReady)
-            {
-                await RefreshIndexAsync();
-            }
-
             return _toolCache.TryGetValue(serverName, out var tools) ? tools : null;
-        }
-
-        public async Task<ToolInfo?> FindToolAsync(string toolName, string? preferredServer = null)
-        {
-            if (!_isIndexReady)
-            {
-                await RefreshIndexAsync();
-            }
-
-            // First try preferred server if specified
-            if (!string.IsNullOrEmpty(preferredServer) &&
-                _toolCache.TryGetValue(preferredServer, out var preferredTools))
-            {
-                var tool = preferredTools.FirstOrDefault(t =>
-                    t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
-                if (tool != null) return tool;
-            }
-
-            // Search all servers
-            foreach (var serverTools in _toolCache.Values)
-            {
-                var tool = serverTools.FirstOrDefault(t =>
-                    t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
-                if (tool != null) return tool;
-            }
-
-            return null;
         }
 
         /// <summary>
@@ -95,38 +57,38 @@ namespace ToolProxy.Services
         public async Task<IReadOnlyList<ToolSearchResult>> SearchToolsSemanticAsync(
             string query,
             int maxResults = 5,
-            float minRelevanceScore = 0.3f)
+            float minRelevanceScore = 0.6f)
         {
-            if (!_isIndexReady)
-            {
-                await RefreshIndexAsync();
-            }
-
             try
             {
                 _logger.LogDebug("Performing semantic search for query: {Query}", query);
 
                 // Generate embedding for the search query
-                var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(query);
+                var queryEmbedding = await _embeddingGenerator.GenerateAsync(query);
+                var collection = _vectorStore.GetCollection<string, ToolVectorRecord>("tool_index");
+                var vectorStoreResults = collection.SearchAsync(queryEmbedding, maxResults);
 
-                // Perform in-memory vector similarity search
                 var results = new List<ToolSearchResult>();
 
-                foreach (var record in _vectorRecordCache.Values)
+                foreach (var result in await vectorStoreResults.ToListAsync())
                 {
-                    var similarity = CalculateCosineSimilarity(queryEmbedding.Span, record.Embedding.Span);
+                    _logger.LogDebug("Vector store search result: {Id} with score {Score}",
+                        result.Record.Id, result.Score);
 
-                    if (similarity >= minRelevanceScore)
+                    if (result.Score >= minRelevanceScore)
                     {
+                        _logger.LogDebug("Result {Id} passed min relevance score {MinScore}",
+                            result.Record.Id, minRelevanceScore);
+
                         var toolInfo = new ToolInfo(
-                            record.ToolName,
-                            record.Description,
-                            ParseParametersFromJson(record.ParametersJson));
+                            result.Record.ToolName,
+                            result.Record.Description,
+                            ParseParametersFromJson(result.Record.ParametersJson));
 
                         results.Add(new ToolSearchResult(
-                            record.ServerName,
+                            result.Record.ServerName,
                             toolInfo,
-                            similarity));
+                            (float)result.Score));
                     }
                 }
 
@@ -161,14 +123,17 @@ namespace ToolProxy.Services
 
         public async Task RefreshIndexAsync()
         {
-            await _indexingSemaphore.WaitAsync();
             try
             {
                 _logger.LogInformation("Refreshing semantic tool index...");
 
+                // Embedding type is not supported by in memory vector store.
+                var collection = _vectorStore.GetCollection<string, ToolVectorRecord>("tool_index");
+                await collection.EnsureCollectionExistsAsync();
+
                 var runningServers = await _mcpManager.GetRunningServersAsync();
                 var newCache = new ConcurrentDictionary<string, IReadOnlyList<ToolInfo>>();
-                var newVectorRecordCache = new ConcurrentDictionary<string, ToolVectorRecord>();
+                var vectorRecords = new List<ToolVectorRecord>();
 
                 foreach (var server in runningServers)
                 {
@@ -179,29 +144,24 @@ namespace ToolProxy.Services
                     foreach (var tool in tools)
                     {
                         var record = await CreateToolVectorRecordAsync(server.Name, tool);
-                        newVectorRecordCache[record.Id] = record;
+                        vectorRecords.Add(record);
                     }
                 }
 
+                // upsert all vector records
+                await collection.UpsertAsync(vectorRecords);
+
                 // Update caches atomically
                 _toolCache.Clear();
-                _vectorRecordCache.Clear();
 
                 foreach (var kvp in newCache)
                 {
                     _toolCache[kvp.Key] = kvp.Value;
                 }
 
-                foreach (var kvp in newVectorRecordCache)
-                {
-                    _vectorRecordCache[kvp.Key] = kvp.Value;
-                }
-
-                _isIndexReady = true;
-
                 var totalTools = _toolCache.Values.Sum(tools => tools.Count);
                 _logger.LogInformation("Semantic tool index refreshed: {ServerCount} servers, {ToolCount} total tools, {VectorRecords} vector records",
-                    _toolCache.Count, totalTools, newVectorRecordCache.Count);
+                    _toolCache.Count, totalTools, vectorRecords.Count);
             }
             catch (Exception ex)
             {
@@ -210,7 +170,6 @@ namespace ToolProxy.Services
             }
             finally
             {
-                _indexingSemaphore.Release();
             }
         }
 
@@ -221,7 +180,7 @@ namespace ToolProxy.Services
             var parameterNames = string.Join(", ", tool.Parameters.Select(p => p.Name));
 
             // Generate embedding for the searchable text
-            var embedding = await _embeddingService.GenerateEmbeddingAsync(searchableText);
+            var embedding = await _embeddingGenerator.GenerateAsync(searchableText);
 
             return new ToolVectorRecord
             {
@@ -233,49 +192,9 @@ namespace ToolProxy.Services
                 ParametersJson = parametersJson,
                 ParameterCount = tool.Parameters.Count,
                 ParameterNames = parameterNames,
-                Embedding = embedding,
+                Embedding = embedding.Vector,
                 LastUpdated = DateTime.Now
             };
-        }
-
-        /// <summary>
-        /// Calculates cosine similarity between two vectors.
-        /// </summary>
-        /// <param name="vector1">First vector</param>
-        /// <param name="vector2">Second vector</param>
-        /// <returns>Cosine similarity score between 0 and 1</returns>
-        private static float CalculateCosineSimilarity(ReadOnlySpan<float> vector1, ReadOnlySpan<float> vector2)
-        {
-            if (vector1.Length != vector2.Length)
-            {
-                throw new ArgumentException("Vectors must have the same length");
-            }
-
-            if (vector1.Length == 0)
-            {
-                return 0.0f;
-            }
-
-            float dotProduct = 0.0f;
-            float magnitude1 = 0.0f;
-            float magnitude2 = 0.0f;
-
-            for (int i = 0; i < vector1.Length; i++)
-            {
-                dotProduct += vector1[i] * vector2[i];
-                magnitude1 += vector1[i] * vector1[i];
-                magnitude2 += vector2[i] * vector2[i];
-            }
-
-            magnitude1 = MathF.Sqrt(magnitude1);
-            magnitude2 = MathF.Sqrt(magnitude2);
-
-            if (magnitude1 == 0.0f || magnitude2 == 0.0f)
-            {
-                return 0.0f;
-            }
-
-            return dotProduct / (magnitude1 * magnitude2);
         }
 
         private static IReadOnlyList<ToolParameter> ParseParametersFromJson(string parametersJson)

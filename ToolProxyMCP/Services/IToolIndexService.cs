@@ -10,15 +10,14 @@ namespace ToolProxy.Services
     public interface IToolIndexService
     {
         // External MCP server tools
-        Task<IReadOnlyDictionary<string, IReadOnlyList<ToolInfo>>> GetAllExternalToolsAsync();
-        Task<IReadOnlyList<ToolInfo>?> GetServerToolsAsync(string serverName);
-        Task<ToolInfo?> FindToolAsync(string toolName, string? preferredServer = null);
+        IReadOnlyDictionary<string, IReadOnlyList<ToolInfo>> GetAllExternalToolsAsync();
+        IReadOnlyList<ToolInfo>? GetServerToolsAsync(string serverName);
 
         // Semantic search capabilities (only available in SemanticKernelToolIndexService)
         Task<IReadOnlyList<ToolSearchResult>> SearchToolsSemanticAsync(
-            string query, 
-            int maxResults = 5, 
-            float minRelevanceScore = 0.3f)
+            string query,
+            int maxResults = 5,
+            float minRelevanceScore = 0.6f)
         {
             // Default implementation for backward compatibility
             return Task.FromResult<IReadOnlyList<ToolSearchResult>>(Array.Empty<ToolSearchResult>());
@@ -29,6 +28,5 @@ namespace ToolProxy.Services
 
         // Index management
         Task RefreshIndexAsync();
-        bool IsIndexReady { get; }
     }
 }
