@@ -19,29 +19,22 @@ namespace ToolProxy.Models
         /// Name of the MCP server that provides this tool.
         /// </summary>
         [JsonPropertyName("server_name")]
-        [VectorStoreData]
+        [VectorStoreData(IsIndexed = true)]
         public string ServerName { get; set; } = string.Empty;
 
         /// <summary>
         /// Name of the tool.
         /// </summary>
         [JsonPropertyName("tool_name")]
-        [VectorStoreData]
+        [VectorStoreData(IsIndexed = true)]
         public string ToolName { get; set; } = string.Empty;
 
         /// <summary>
         /// Description of what the tool does.
         /// </summary>
         [JsonPropertyName("description")]
-        [VectorStoreData]
+        [VectorStoreData(IsFullTextIndexed = true)]
         public string Description { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Concatenated text used for generating embeddings (tool name + description).
-        /// </summary>
-        [JsonPropertyName("searchable_text")]
-        [VectorStoreData]
-        public string SearchableText { get; set; } = string.Empty;
 
         /// <summary>
         /// JSON representation of tool parameters for detailed information.
@@ -84,14 +77,6 @@ namespace ToolProxy.Models
         public static string CreateId(string serverName, string toolName)
         {
             return $"{serverName}.{toolName}";
-        }
-
-        /// <summary>
-        /// Creates searchable text from tool name and description.
-        /// </summary>
-        public static string CreateSearchableText(string toolName, string description)
-        {
-            return $"{toolName}: {description}".Trim();
         }
     }
 }

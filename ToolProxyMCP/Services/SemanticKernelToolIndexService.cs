@@ -143,7 +143,7 @@ namespace ToolProxy.Services
                     // Create vector records for each tool
                     foreach (var tool in tools)
                     {
-                        var record = await CreateToolVectorRecordAsync(server.Name, tool);
+                        var record = await CreateToolVectorRecordAsync(server.Name, server.Description, tool);
                         vectorRecords.Add(record);
                     }
                 }
@@ -173,14 +173,21 @@ namespace ToolProxy.Services
             }
         }
 
-        private async Task<ToolVectorRecord> CreateToolVectorRecordAsync(string serverName, ToolInfo tool)
+        private async Task<ToolVectorRecord> CreateToolVectorRecordAsync(string serverName, string serverDescription, ToolInfo tool)
         {
-            var searchableText = ToolVectorRecord.CreateSearchableText(tool.Name, tool.Description);
             var parametersJson = JsonSerializer.Serialize(tool.Parameters);
             var parameterNames = string.Join(", ", tool.Parameters.Select(p => p.Name));
+            var parameterDescriptions = string.Join("; ", tool.Parameters.Select(p => $"{p.Name}: {p.Description}"));
 
-            // Generate embedding for the searchable text
-            var embedding = await _embeddingGenerator.GenerateAsync(searchableText);
+            var embeddingInput = $"The {serverName} described as \"{serverDescription}\" has a tool named {tool.Name} that can be used for: {tool.Description}. The following parameters can be used when calling the tool:";
+
+            if (tool.Parameters.Count > 0)
+            {
+                embeddingInput += $"{parameterDescriptions}.";
+            }
+
+            // Use the server name, tool name and description to generate the embedding. 
+            var embedding = await _embeddingGenerator.GenerateAsync(embeddingInput);
 
             return new ToolVectorRecord
             {
@@ -188,7 +195,6 @@ namespace ToolProxy.Services
                 ServerName = serverName,
                 ToolName = tool.Name,
                 Description = tool.Description,
-                SearchableText = searchableText,
                 ParametersJson = parametersJson,
                 ParameterCount = tool.Parameters.Count,
                 ParameterNames = parameterNames,

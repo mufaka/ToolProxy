@@ -22,7 +22,7 @@ namespace ToolProxy.Tools
         public async Task<string> SearchToolsSemanticAsync(
             [Description("Natural language description of the functionality you're looking for")] string query,
             [Description("Maximum number of results to return (default: 5)")] int maxResults = 5,
-            [Description("Minimum relevance score between 0.0 and 1.0 (default: 0.3)")] float minRelevanceScore = 0.3f,
+            [Description("Minimum relevance score between 0.0 and 1.0 (default: 0.55)")] float minRelevanceScore = 0.55f,
             CancellationToken cancellationToken = default)
         {
             try

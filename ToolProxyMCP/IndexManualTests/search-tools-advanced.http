@@ -15,7 +15,7 @@ Content-Type: application/json
 {
   "prompt": "scrape websites extract data from web pages",
   "maxResults": 5,
-  "minRelevanceScore": 0.3
+  "minRelevanceScore": 0.6
 }
 
 ### Test search-tools for database operations
@@ -35,7 +35,7 @@ Content-Type: application/json
 {
   "prompt": "language server protocol analysis",
   "maxResults": 3,
-  "minRelevanceScore": 0.7
+  "minRelevanceScore": 0.6
 }
 
 ### Test search-tools with low relevance score (more permissive)
@@ -48,12 +48,12 @@ Content-Type: application/json
   "minRelevanceScore": 0.1
 }
 
-### Test search-tools for version control
+### Test search-tools for sequential thinking
 POST http://localhost:3030/search-tools
 Content-Type: application/json
 
 {
-  "prompt": "git version control repository management",
+  "prompt": "sequential thinking, reasoning, and analysis of thoughts",
   "maxResults": 5,
   "minRelevanceScore": 0.3
 }

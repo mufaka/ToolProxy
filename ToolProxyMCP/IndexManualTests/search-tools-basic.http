@@ -21,7 +21,7 @@ POST http://localhost:3030/search-tools
 Content-Type: application/json
 
 {
-  "prompt": "documentation and reference materials",
+  "prompt": "documentation and reference materials for code libraries",
   "maxResults": 5,
   "minRelevanceScore": 0.3
 }
