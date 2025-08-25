@@ -45,12 +45,12 @@
 						  <Style>
 							  <Style Selector=".Markdown_Avalonia_MarkdownViewer TextBlock.CodeBlock">
 								  <Style.Setters>
-									  <Setter Property="Foreground" Value="White" />
+									  <Setter Property="Foreground" Value="#333" />
 								  </Style.Setters>
 							  </Style>
 							  <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CCode">
 								  <Style.Setters>
-									  <Setter Property="Foreground" Value="White" />
+									  <Setter Property="Foreground" Value="#333" />
 								  </Style.Setters>
 							  </Style>
 						  </Style>
