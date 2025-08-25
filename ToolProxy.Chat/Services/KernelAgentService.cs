@@ -190,8 +190,7 @@ public class KernelAgentService : IKernelAgentService
 
     public Task ClearHistoryAsync()
     {
-        // TODO: This should create a new ChatHistoryAgentThread.
-
+        InitializeAgent();
         return Task.CompletedTask;
     }
 }

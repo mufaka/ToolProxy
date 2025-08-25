@@ -18,6 +18,11 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
     }
 
+    public override void RegisterServices()
+    {
+        base.RegisterServices();
+    }
+
     public override void OnFrameworkInitializationCompleted()
     {
         var host = CreateHostBuilder().Build();
@@ -53,7 +58,7 @@ public partial class App : Application
                 services.AddSingleton<IKernelAgentService, KernelAgentService>();
 
                 // ViewModels and Views
-                services.AddTransient<MainWindowViewModel>();
-                services.AddTransient<MainWindow>();
+                services.AddSingleton<MainWindowViewModel>();
+                services.AddSingleton<MainWindow>();
             });
 }

@@ -38,7 +38,6 @@ public class MainWindowViewModel : ViewModelBase
         SendMessageCommand = ReactiveCommand.CreateFromTask(SendMessageAsync, outputScheduler: RxApp.MainThreadScheduler);
         //SendMessageCommand = ReactiveCommand.Create(() => { /* do nothing */ });
         ClearHistoryCommand = ReactiveCommand.CreateFromTask(ClearHistoryAsync, outputScheduler: RxApp.MainThreadScheduler);
-
         // Start initialization as a proper async task
         _ = InitializeAsync();
     }
@@ -80,8 +79,8 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    public ReactiveCommand<Unit, Unit> SendMessageCommand { get; }
-    public ReactiveCommand<Unit, Unit> ClearHistoryCommand { get; }
+    public ReactiveCommand<Unit, Unit> SendMessageCommand { get; private set; }
+    public ReactiveCommand<Unit, Unit> ClearHistoryCommand { get; private set; }
 
     // Static converters for the UI
     public static readonly IValueConverter MessageBackgroundConverter =
@@ -179,14 +178,15 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private async Task ClearHistoryAsync()
+    private Task ClearHistoryAsync()
     {
         Messages.Clear();
+        StatusMessage = "History cleared - Ready for new conversation";
         if (_agentService != null)
         {
-            await _agentService.ClearHistoryAsync();
+            _agentService.ClearHistoryAsync();
         }
-        StatusMessage = "History cleared - Ready for new conversation";
+        return Task.CompletedTask;
     }
 }
 
