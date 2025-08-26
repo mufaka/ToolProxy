@@ -155,6 +155,75 @@ namespace ToolProxy.Tools
             return string.Join("\n", info);
         }
 
+        [McpServerTool, Description("List all MCP servers and their tools in JSON format")]
+        public async Task<string> ListAllServersAndToolsJsonAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var allTools = _toolIndexService.GetAllExternalToolsAsync();
+
+                var serversWithTools = new List<object>();
+
+                foreach (var (serverName, tools) in allTools)
+                {
+                    var toolsJson = tools.Select(tool => new
+                    {
+                        name = tool.Name,
+                        description = tool.Description,
+                        parameters = tool.Parameters.Select(param => new
+                        {
+                            name = param.Name,
+                            type = param.Type,
+                            description = param.Description,
+                            required = param.IsRequired
+                        }).ToArray()
+                    }).ToArray();
+
+                    serversWithTools.Add(new
+                    {
+                        serverName = serverName,
+                        toolCount = tools.Count,
+                        tools = toolsJson
+                    });
+                }
+
+                var result = new
+                {
+                    totalServers = allTools.Count,
+                    totalTools = allTools.Values.Sum(tools => tools.Count),
+                    timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    servers = serversWithTools
+                };
+
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+
+                return JsonSerializer.Serialize(result, options);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error listing all servers and tools in JSON format");
+                
+                var errorResult = new
+                {
+                    error = "Failed to retrieve servers and tools",
+                    message = ex.Message,
+                    timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                };
+
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+
+                return JsonSerializer.Serialize(errorResult, options);
+            }
+        }
+
         [McpServerTool, Description("Call a tool from an external MCP server")]
         public async Task<string> CallExternalToolAsync(
             [Description("Name of the MCP server")] string serverName,

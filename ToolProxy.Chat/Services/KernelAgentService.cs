@@ -3,12 +3,17 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Connectors.Ollama;
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 using System.Text;
+using System.Text.Json;
 using ToolProxy.Chat.Models;
 
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates
 
 namespace ToolProxy.Chat.Services;
+
+public record ToolInfo(string Name, string Description, Dictionary<string, object> Parameters);
+public record ServerInfo(string Name, string Description, List<ToolInfo> Tools);
 
 public interface IKernelAgentService
 {
@@ -17,6 +22,8 @@ public interface IKernelAgentService
     IAsyncEnumerable<string> InvokeStreamingAsync(string prompt);
     // Task<List<ChatMessage>> GetHistoryAsync(); // see TODO below in implementation
     Task ClearHistoryAsync();
+    Task<List<ServerInfo>> GetAvailableToolsAsync();
+    Task RefreshToolsAsync();
 }
 
 public class KernelAgentService : IKernelAgentService
@@ -27,6 +34,7 @@ public class KernelAgentService : IKernelAgentService
     private IMcpClient? _mcpClient;
     private ChatCompletionAgent? _agent;
     private ChatHistoryAgentThread? _agentThread;
+    private List<ServerInfo> _cachedTools = new();
 
     public KernelAgentService(ChatConfiguration config, ILogger<KernelAgentService> logger)
     {
@@ -55,6 +63,9 @@ public class KernelAgentService : IKernelAgentService
             var availableTools = await _mcpClient.ListToolsAsync();
             _logger.LogInformation("Found {ToolCount} available tools from ToolProxy", availableTools.Count);
 
+            // Cache the tools for UI display
+            await CacheToolsAsync();
+
             // Create kernel with Ollama and tools
             var builder = Kernel.CreateBuilder();
             builder.AddOllamaChatCompletion(
@@ -79,6 +90,197 @@ public class KernelAgentService : IKernelAgentService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to initialize Kernel Agent Service");
+            throw;
+        }
+    }
+
+    private async Task CacheToolsAsync()
+    {
+        try
+        {
+            if (_mcpClient == null) return;
+
+            // Call the new JSON-based tool to get all servers and tools
+            var allToolsResult = await _mcpClient.CallToolAsync("list_all_servers_and_tools_json", new Dictionary<string, object>());
+
+            if (allToolsResult.Content.Count > 0)
+            {
+                if (allToolsResult.Content[0] is TextContentBlock textBlock)
+                {
+                    _cachedTools = ParseToolsFromJsonResult(textBlock.Text);
+                    _logger.LogInformation("Cached {ServerCount} servers with tools for UI display", _cachedTools.Count);
+                }
+                else
+                {
+                    _logger.LogWarning("No content returned for server list.");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("No content returned for server list.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to cache tools for UI display, falling back to semantic search");
+        }
+    }
+
+    private List<ServerInfo> ParseToolsFromJsonResult(string jsonResult)
+    {
+        try
+        {
+            var servers = new List<ServerInfo>();
+
+            using var document = JsonDocument.Parse(jsonResult);
+            var root = document.RootElement;
+
+            // Check if the response contains an error
+            if (root.TryGetProperty("error", out _))
+            {
+                _logger.LogWarning("JSON tool response contains error, using fallback parsing");
+                return new List<ServerInfo>();
+            }
+
+            // Parse the servers array
+            if (root.TryGetProperty("servers", out var serversElement) &&
+                serversElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var serverElement in serversElement.EnumerateArray())
+                {
+                    if (!serverElement.TryGetProperty("serverName", out var serverNameElement) ||
+                        !serverElement.TryGetProperty("tools", out var toolsElement))
+                        continue;
+
+                    var serverName = serverNameElement.GetString() ?? "Unknown Server";
+                    var tools = new List<ToolInfo>();
+
+                    if (toolsElement.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var toolElement in toolsElement.EnumerateArray())
+                        {
+                            var toolName = toolElement.TryGetProperty("name", out var nameElement)
+                                ? nameElement.GetString() ?? "Unknown Tool"
+                                : "Unknown Tool";
+
+                            var toolDescription = toolElement.TryGetProperty("description", out var descElement)
+                                ? descElement.GetString() ?? "No description available"
+                                : "No description available";
+
+                            // Parse parameters for additional metadata (optional)
+                            var parameters = new Dictionary<string, object>();
+                            if (toolElement.TryGetProperty("parameters", out var paramsElement) &&
+                                paramsElement.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var paramElement in paramsElement.EnumerateArray())
+                                {
+                                    if (paramElement.TryGetProperty("name", out var paramNameElement))
+                                    {
+                                        var paramName = paramNameElement.GetString() ?? "";
+                                        var paramType = paramElement.TryGetProperty("type", out var typeElement)
+                                            ? typeElement.GetString() ?? "unknown"
+                                            : "unknown";
+                                        var required = paramElement.TryGetProperty("required", out var reqElement)
+                                            && reqElement.GetBoolean();
+
+                                        parameters[paramName] = new { type = paramType, required = required };
+                                    }
+                                }
+                            }
+
+                            tools.Add(new ToolInfo(toolName, toolDescription, parameters));
+                        }
+                    }
+
+                    var serverDescription = $"{serverName} Server ({tools.Count} tools)";
+                    servers.Add(new ServerInfo(serverName, serverDescription, tools));
+                }
+            }
+
+            _logger.LogInformation("Successfully parsed {ServerCount} servers from JSON response", servers.Count);
+            return servers;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error parsing JSON tools result: {JsonResult}", jsonResult);
+            return new List<ServerInfo>();
+        }
+    }
+
+    private List<ServerInfo> ParseToolsFromResult(string result)
+    {
+        var servers = new Dictionary<string, List<ToolInfo>>();
+
+        // Parse the semantic search result to extract server.tool information
+        var lines = result.Split('\n');
+
+        foreach (var line in lines)
+        {
+            // Look for lines that match the pattern "ServerName.ToolName (Score: X.XXX)"
+            if (line.Contains('.') && line.Contains("(Score:"))
+            {
+                var parts = line.Split('.');
+                if (parts.Length >= 2)
+                {
+                    var serverName = parts[0].Trim();
+                    var toolPart = parts[1];
+                    var toolName = toolPart.Split(' ').FirstOrDefault()?.Trim() ?? "";
+
+                    if (!string.IsNullOrEmpty(serverName) && !string.IsNullOrEmpty(toolName))
+                    {
+                        if (!servers.ContainsKey(serverName))
+                        {
+                            servers[serverName] = new List<ToolInfo>();
+                        }
+
+                        // Find the description on the next line
+                        var description = "No description available";
+                        var currentIndex = Array.IndexOf(lines, line);
+                        if (currentIndex + 1 < lines.Length)
+                        {
+                            var nextLine = lines[currentIndex + 1].Trim();
+                            if (nextLine.StartsWith("    ") && !nextLine.StartsWith("    Parameters:"))
+                            {
+                                description = nextLine.Trim();
+                            }
+                        }
+
+                        servers[serverName].Add(new ToolInfo(toolName, description, new Dictionary<string, object>()));
+                    }
+                }
+            }
+        }
+
+        return servers.Select(kvp => new ServerInfo(kvp.Key, $"{kvp.Key} Server", kvp.Value)).ToList();
+    }
+
+    public async Task<List<ServerInfo>> GetAvailableToolsAsync()
+    {
+        if (!_cachedTools.Any())
+        {
+            await CacheToolsAsync();
+        }
+        return _cachedTools;
+    }
+
+    public async Task RefreshToolsAsync()
+    {
+        try
+        {
+            if (_mcpClient != null)
+            {
+                // Call the refresh tool index first
+                await _mcpClient.CallToolAsync("refresh_tool_index", new Dictionary<string, object>());
+
+                // Re-cache the tools using the new JSON method
+                await CacheToolsAsync();
+
+                _logger.LogInformation("Successfully refreshed tool index");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh tools");
             throw;
         }
     }

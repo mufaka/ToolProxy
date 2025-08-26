@@ -18,86 +18,119 @@
 
 	<SplitView IsPaneOpen="{Binding IsDrawerOpen}"
 			   DisplayMode="Overlay"
-			   OpenPaneLength="350"
+			   OpenPaneLength="450"
 			   PanePlacement="Right">
 
 		<!-- Drawer Pane Content -->
 		<SplitView.Pane>
 			<Border Background="#2E3440" Padding="15">
-				<StackPanel>
-					<Button Command="{Binding ToggleDrawerCommand}" Content="Close" />
-					<TextBlock Text="Tools &amp; Settings"
-							   FontSize="18" FontWeight="Bold"
-							   Foreground="White" Margin="0,0,0,20"/>
+				<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+					<StackPanel>
+						<Button Command="{Binding ToggleDrawerCommand}" Content="Close" />
+						<TextBlock Text="Tools &amp; Settings"
+								   FontSize="18" FontWeight="Bold"
+								   Foreground="White" Margin="0,0,0,20"/>
 
-					<!-- Sample controls in the drawer -->
-					<Expander Header="Agent Settings" IsExpanded="True" Margin="0,0,0,15">
-						<StackPanel Margin="10,10,0,0">
-							<TextBlock Text="Temperature:" Foreground="White" Margin="0,0,0,5"/>
-							<Slider Minimum="0" Maximum="2" Value="0.7" Width="200" HorizontalAlignment="Left"/>
+						<!-- Tool Proxy MCP Server Tools -->
+						<Expander Header="Tool Proxy MCP Server" IsExpanded="True" Margin="0,0,0,15">
+							<StackPanel Margin="10,10,0,0">
+								<!-- Summary Information -->
+								<StackPanel Orientation="Horizontal" Margin="0,0,0,10"
+											IsVisible="{Binding !IsLoadingTools}">
+									<TextBlock Text="📊" Foreground="#81A1C1" Margin="0,0,5,0"/>
+									<TextBlock Text="{Binding AvailableServers.Count, StringFormat='{}{0} servers'}"
+											   Foreground="#D8DEE9" FontSize="11" Margin="0,0,8,0"/>
+									<TextBlock Text="•" Foreground="#4C566A" FontSize="11" Margin="0,0,8,0"/>
+									<TextBlock Text="{Binding AvailableToolsCount, StringFormat='{}{0} tools'}"
+											   Foreground="#D8DEE9" FontSize="11" Margin="0,0,8,0"/>
+								</StackPanel>
 
-							<TextBlock Text="Max Tokens:" Foreground="White" Margin="0,15,0,5"/>
-						</StackPanel>
-					</Expander>
+								<!-- Refresh Button -->
+								<Button Content="Refresh Tools"
+										Command="{Binding RefreshToolsCommand}"
+										IsEnabled="{Binding !IsLoadingTools}"
+										Background="#5E81AC" Foreground="White"
+										HorizontalAlignment="Left" Padding="10,5" Margin="0,0,0,10"/>
 
-					<Expander Header="Tool Proxy Status" IsExpanded="True" Margin="0,0,0,15">
-						<StackPanel Margin="10,10,0,0">
-							<StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-								<TextBlock Text="Status: " Foreground="White" VerticalAlignment="Center"/>
-								<Ellipse Width="10" Height="10" Margin="5,0,0,0"
-										 Fill="{Binding IsConnected, Converter={x:Static vm:MainWindowViewModel.BooleanToBrushConverter}}"/>
-								<TextBlock Text="{Binding IsConnected, StringFormat='Connected: {0}'}"
-										   Foreground="White" Margin="5,0,0,0" VerticalAlignment="Center"/>
+								<!-- Loading Indicator -->
+								<TextBlock Text="Loading tools..."
+										   Foreground="Yellow" FontStyle="Italic"
+										   IsVisible="{Binding IsLoadingTools}"
+										   Margin="0,0,0,10"/>
+
+								<!-- Servers and Tools List -->
+								<ItemsControl ItemsSource="{Binding AvailableServers}" IsVisible="{Binding !IsLoadingTools}">
+									<ItemsControl.ItemTemplate>
+										<DataTemplate>
+											<Expander Header="{Binding Name}" IsExpanded="False" Margin="0,0,0,5">
+												<StackPanel Margin="10,5,0,0">
+													<TextBlock Text="{Binding Description}"
+															   Foreground="#D8DEE9" FontSize="12"
+															   Margin="0,0,0,10" FontStyle="Italic"/>
+
+													<!-- Tools List -->
+													<ItemsControl ItemsSource="{Binding Tools}">
+														<ItemsControl.ItemTemplate>
+															<DataTemplate>
+																<Border Background="#3B4252"
+																		CornerRadius="4"
+																		Padding="10,8"
+																		Margin="0,3">
+																	<StackPanel>
+																		<!-- Tool Name and Description -->
+																		<StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+																			<TextBlock Text="🔧" Foreground="#81A1C1" Margin="0,0,6,0" FontSize="12"/>
+																			<TextBlock Text="{Binding Name}"
+																					   Foreground="White"
+																					   FontWeight="SemiBold"
+																					   FontSize="12"/>
+																		</StackPanel>
+
+																		<TextBlock Text="{Binding Description}"
+																				   Foreground="#D8DEE9"
+																				   FontSize="10"
+																				   TextWrapping="Wrap"
+																				   Margin="0,0,0,6"/>
+
+																		<!-- Parameters Count (if any) -->
+																		<StackPanel Orientation="Horizontal"
+																					Margin="0,0,0,0"
+																					IsVisible="{Binding Parameters, Converter={x:Static vm:MainWindowViewModel.HasParametersConverter}}">
+																			<TextBlock Text="📋" Foreground="#A3BE8C" Margin="0,0,4,0" FontSize="9"/>
+																			<TextBlock Text="{Binding Parameters.Count, StringFormat='{}{0} parameters'}"
+																					   Foreground="#A3BE8C"
+																					   FontSize="9"
+																					   FontStyle="Italic"/>
+																		</StackPanel>
+																	</StackPanel>
+																</Border>
+															</DataTemplate>
+														</ItemsControl.ItemTemplate>
+													</ItemsControl>
+
+													<!-- No tools message -->
+													<TextBlock Text="No tools available"
+															   Foreground="#BF616A"
+															   FontStyle="Italic"
+															   FontSize="11"
+															   Margin="0,10,0,0"
+															   IsVisible="{Binding Tools.Count, Converter={x:Static vm:MainWindowViewModel.ZeroCountToBoolConverter}}"/>
+												</StackPanel>
+											</Expander>
+										</DataTemplate>
+									</ItemsControl.ItemTemplate>
+								</ItemsControl>
+								<!-- No servers message -->
+								<TextBlock Text="No servers connected"
+										   Foreground="#BF616A"
+										   FontStyle="Italic"
+										   Margin="0,10,0,0"
+										   IsVisible="{Binding AvailableServers.Count, Converter={x:Static vm:MainWindowViewModel.ZeroCountToBoolConverter}}"/>
 							</StackPanel>
+						</Expander>
 
-							<Button Content="Refresh Tools" Background="#4C566A" Foreground="White"
-									HorizontalAlignment="Left" Padding="10,5"/>
-							<Button Content="Search Tools" Background="#5E81AC" Foreground="White"
-									HorizontalAlignment="Left" Padding="10,5" Margin="0,5,0,0"/>
-						</StackPanel>
-					</Expander>
-
-					<Expander Header="Quick Actions" IsExpanded="False" Margin="0,0,0,15">
-						<StackPanel Margin="10,10,0,0">
-							<Button Content="Export Chat" Background="#A3BE8C" Foreground="White"
-									HorizontalAlignment="Left" Padding="10,5" Margin="0,0,0,5"/>
-							<Button Content="Import Chat" Background="#EBCB8B" Foreground="Black"
-									HorizontalAlignment="Left" Padding="10,5" Margin="0,0,0,5"/>
-							<Button Content="Settings" Background="#B48EAD" Foreground="White"
-									HorizontalAlignment="Left" Padding="10,5"/>
-						</StackPanel>
-					</Expander>
-
-					<!-- Sample list with recent tools -->
-					<Expander Header="Recent Tools" IsExpanded="False">
-						<ListBox Background="Transparent" Margin="10,10,0,0" Height="150">
-							<ListBoxItem Foreground="White" Padding="5">
-								<StackPanel Orientation="Horizontal">
-									<TextBlock Text="🔧" Margin="0,0,5,0"/>
-									<TextBlock Text="Sequential Thinking"/>
-								</StackPanel>
-							</ListBoxItem>
-							<ListBoxItem Foreground="White" Padding="5">
-								<StackPanel Orientation="Horizontal">
-									<TextBlock Text="📚" Margin="0,0,5,0"/>
-									<TextBlock Text="Context7 Docs"/>
-								</StackPanel>
-							</ListBoxItem>
-							<ListBoxItem Foreground="White" Padding="5">
-								<StackPanel Orientation="Horizontal">
-									<TextBlock Text="🧠" Margin="0,0,5,0"/>
-									<TextBlock Text="Mental Models"/>
-								</StackPanel>
-							</ListBoxItem>
-							<ListBoxItem Foreground="White" Padding="5">
-								<StackPanel Orientation="Horizontal">
-									<TextBlock Text="🔍" Margin="0,0,5,0"/>
-									<TextBlock Text="Tool Search"/>
-								</StackPanel>
-							</ListBoxItem>
-						</ListBox>
-					</Expander>
-				</StackPanel>
+					</StackPanel>
+				</ScrollViewer>
 			</Border>
 		</SplitView.Pane>
 

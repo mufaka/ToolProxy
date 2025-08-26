@@ -16,7 +16,8 @@ public class MainWindowViewModel : ViewModelBase
     private string _statusMessage = "Initializing...";
     private bool _isProcessing;
     private bool _isConnected;
-    private bool _isDrawerOpen = true;
+    private bool _isDrawerOpen = false;
+    private bool _isLoadingTools = false;
 
 
     public MainWindowViewModel()
@@ -27,8 +28,22 @@ public class MainWindowViewModel : ViewModelBase
         SendMessageCommand = ReactiveCommand.Create(() => { });
         ClearHistoryCommand = ReactiveCommand.Create(() => { });
         ToggleDrawerCommand = ReactiveCommand.Create(() => { });
+        RefreshToolsCommand = ReactiveCommand.Create(() => { });
 
         StatusMessage = "Design-time mode";
+
+        // Add some sample tools for design-time
+        AvailableServers.Add(new ServerInfo("Clear Thought", "Advanced reasoning tools", new List<ToolInfo>
+        {
+            new("sequentialthinking", "Dynamic multi-step problem-solving", new()),
+            new("mentalmodel", "Structured mental models for problem-solving", new()),
+            new("debuggingapproach", "Systematic debugging approaches", new())
+        }));
+        AvailableServers.Add(new ServerInfo("context7", "Documentation and reference", new List<ToolInfo>
+        {
+            new("resolve-library-id", "Find library IDs", new()),
+            new("get-library-docs", "Get documentation", new())
+        }));
     }
 
     // Runtime constructor for dependency injection
@@ -41,12 +56,21 @@ public class MainWindowViewModel : ViewModelBase
         //SendMessageCommand = ReactiveCommand.Create(() => { /* do nothing */ });
         ClearHistoryCommand = ReactiveCommand.CreateFromTask(ClearHistoryAsync, outputScheduler: RxApp.MainThreadScheduler);
         ToggleDrawerCommand = ReactiveCommand.Create(ToggleDrawer, outputScheduler: RxApp.MainThreadScheduler);
+        RefreshToolsCommand = ReactiveCommand.CreateFromTask(RefreshToolsAsync, outputScheduler: RxApp.MainThreadScheduler);
 
         // Start initialization as a proper async task
         _ = InitializeAsync();
     }
 
     public ObservableCollection<ChatMessage> Messages { get; } = new();
+    public ObservableCollection<ServerInfo> AvailableServers { get; } = new();
+
+    private int _availableToolsCount;
+    public int AvailableToolsCount
+    {
+        get => _availableToolsCount;
+        set => this.RaiseAndSetIfChanged(ref _availableToolsCount, value);
+    }
 
     public string CurrentMessage
     {
@@ -93,9 +117,19 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
+    public bool IsLoadingTools
+    {
+        get => _isLoadingTools;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isLoadingTools, value);
+        }
+    }
+
     public ReactiveCommand<Unit, Unit> SendMessageCommand { get; private set; }
     public ReactiveCommand<Unit, Unit> ClearHistoryCommand { get; private set; }
     public ReactiveCommand<Unit, Unit> ToggleDrawerCommand { get; private set; }
+    public ReactiveCommand<Unit, Unit> RefreshToolsCommand { get; private set; }
 
     // Static converters for the UI
     public static readonly IValueConverter MessageBackgroundConverter =
@@ -115,9 +149,72 @@ public class MainWindowViewModel : ViewModelBase
         new FuncValueConverter<bool, IBrush>(connected =>
             connected ? new SolidColorBrush(Color.Parse("#4CAF50")) : new SolidColorBrush(Color.Parse("#F44336")));
 
+    public static readonly IValueConverter TotalToolsConverter =
+        new FuncValueConverter<ObservableCollection<ServerInfo>, int>(servers =>
+            servers?.Sum(s => s.Tools.Count) ?? 0);
+
+    public static readonly IValueConverter HasParametersConverter =
+        new FuncValueConverter<Dictionary<string, object>, bool>(parameters =>
+            parameters != null && parameters.Count > 0);
+
+    public static readonly IValueConverter ZeroCountToBoolConverter =
+        new FuncValueConverter<int, bool>(count => count == 0);
+
     private void ToggleDrawer()
     {
         IsDrawerOpen = !IsDrawerOpen;
+    }
+
+    private async Task RefreshToolsAsync()
+    {
+        if (_agentService == null) return;
+
+        try
+        {
+            IsLoadingTools = true;
+            StatusMessage = "Refreshing tools...";
+
+            await _agentService.RefreshToolsAsync();
+            await LoadToolsAsync();
+
+            StatusMessage = "Tools refreshed successfully";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Failed to refresh tools: {ex.Message}";
+        }
+        finally
+        {
+            IsLoadingTools = false;
+        }
+    }
+
+    private async Task LoadToolsAsync()
+    {
+        if (_agentService == null) return;
+
+        try
+        {
+            var servers = await _agentService.GetAvailableToolsAsync();
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                AvailableServers.Clear();
+
+                int toolCount = 0;
+                foreach (var server in servers)
+                {
+                    AvailableServers.Add(server);
+                    toolCount += server.Tools.Count;
+                }
+
+                AvailableToolsCount = toolCount;
+            });
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Failed to load tools: {ex.Message}";
+        }
     }
 
     private async Task InitializeAsync()
@@ -132,6 +229,9 @@ public class MainWindowViewModel : ViewModelBase
 
             // Perform the actual initialization (can be on background thread)
             await _agentService.InitializeAsync();
+
+            // Load available tools
+            await LoadToolsAsync();
 
             // Update UI on the UI thread
             await Dispatcher.UIThread.InvokeAsync(() =>
