@@ -16,6 +16,7 @@ public class MainWindowViewModel : ViewModelBase
     private string _statusMessage = "Initializing...";
     private bool _isProcessing;
     private bool _isConnected;
+    private bool _isDrawerOpen = true;
 
 
     public MainWindowViewModel()
@@ -25,6 +26,7 @@ public class MainWindowViewModel : ViewModelBase
         // Simple commands for design-time
         SendMessageCommand = ReactiveCommand.Create(() => { });
         ClearHistoryCommand = ReactiveCommand.Create(() => { });
+        ToggleDrawerCommand = ReactiveCommand.Create(() => { });
 
         StatusMessage = "Design-time mode";
     }
@@ -38,11 +40,14 @@ public class MainWindowViewModel : ViewModelBase
         SendMessageCommand = ReactiveCommand.CreateFromTask(SendMessageAsync, outputScheduler: RxApp.MainThreadScheduler);
         //SendMessageCommand = ReactiveCommand.Create(() => { /* do nothing */ });
         ClearHistoryCommand = ReactiveCommand.CreateFromTask(ClearHistoryAsync, outputScheduler: RxApp.MainThreadScheduler);
+        ToggleDrawerCommand = ReactiveCommand.Create(ToggleDrawer, outputScheduler: RxApp.MainThreadScheduler);
+
         // Start initialization as a proper async task
         _ = InitializeAsync();
     }
 
     public ObservableCollection<ChatMessage> Messages { get; } = new();
+
     public string CurrentMessage
     {
         get => _currentMessage;
@@ -79,8 +84,18 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
+    public bool IsDrawerOpen
+    {
+        get => _isDrawerOpen;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isDrawerOpen, value);
+        }
+    }
+
     public ReactiveCommand<Unit, Unit> SendMessageCommand { get; private set; }
     public ReactiveCommand<Unit, Unit> ClearHistoryCommand { get; private set; }
+    public ReactiveCommand<Unit, Unit> ToggleDrawerCommand { get; private set; }
 
     // Static converters for the UI
     public static readonly IValueConverter MessageBackgroundConverter =
@@ -99,6 +114,11 @@ public class MainWindowViewModel : ViewModelBase
     public static readonly IValueConverter BooleanToBrushConverter =
         new FuncValueConverter<bool, IBrush>(connected =>
             connected ? new SolidColorBrush(Color.Parse("#4CAF50")) : new SolidColorBrush(Color.Parse("#F44336")));
+
+    private void ToggleDrawer()
+    {
+        IsDrawerOpen = !IsDrawerOpen;
+    }
 
     private async Task InitializeAsync()
     {

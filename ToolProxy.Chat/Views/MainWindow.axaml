@@ -12,86 +12,183 @@
         Title="ToolProxy Chat" Width="1000" Height="700"
         MinWidth="800" MinHeight="600">
 
-  <Design.DataContext>
-    <vm:MainWindowViewModel/>
-  </Design.DataContext>
+	<Design.DataContext>
+		<vm:MainWindowViewModel/>
+	</Design.DataContext>
 
-  <Grid RowDefinitions="Auto,*,Auto,Auto">
-    
-    <!-- Toolbar -->
-    <Border Grid.Row="0" Padding="15,10">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Grid.Column="0" Text="ToolProxy Chat Assistant" 
-                   VerticalAlignment="Center" Foreground="White" FontWeight="Bold" FontSize="16"/>
-        <Button Grid.Column="1" Content="Clear History" 
-                Command="{Binding ClearHistoryCommand}"
-                Background="Transparent" Foreground="White" BorderBrush="White"/>
-      </Grid>
-    </Border>
+	<SplitView IsPaneOpen="{Binding IsDrawerOpen}"
+			   DisplayMode="Overlay"
+			   OpenPaneLength="350"
+			   PanePlacement="Right">
 
-    <!-- Chat Messages -->
-    <ScrollViewer Grid.Row="1" Name="ChatScrollViewer" VerticalScrollBarVisibility="Auto" Foreground="#666">
-      <ItemsControl ItemsSource="{Binding Messages}" Margin="10">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <Border Margin="5" Padding="15" CornerRadius="10" MaxWidth="800"
-                    Background="{Binding Role, Converter={x:Static vm:MainWindowViewModel.MessageBackgroundConverter}}"
-                    HorizontalAlignment="{Binding Role, Converter={x:Static vm:MainWindowViewModel.MessageAlignmentConverter}}">
-              <StackPanel>
-                <TextBlock Text="{Binding Role}" FontWeight="Bold" FontSize="12" 
-                          Foreground="#666" Margin="0,0,0,5"/>
-				  <md:MarkdownScrollViewer Markdown="{Binding Content}">
-					  <md:MarkdownScrollViewer.MarkdownStyle>
-						  <Style>
-							  <Style Selector=".Markdown_Avalonia_MarkdownViewer TextBlock.CodeBlock">
-								  <Style.Setters>
-									  <Setter Property="Foreground" Value="#333" />
-								  </Style.Setters>
-							  </Style>
-							  <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CCode">
-								  <Style.Setters>
-									  <Setter Property="Foreground" Value="#333" />
-								  </Style.Setters>
-							  </Style>
-						  </Style>
-					  </md:MarkdownScrollViewer.MarkdownStyle>
-				  </md:MarkdownScrollViewer>
-                <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}"
-                          Foreground="#666" FontSize="10" Opacity="0.6" HorizontalAlignment="Right" Margin="0,5,0,0"/>
-              </StackPanel>
-            </Border>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </ScrollViewer>
+		<!-- Drawer Pane Content -->
+		<SplitView.Pane>
+			<Border Background="#2E3440" Padding="15">
+				<StackPanel>
+					<Button Command="{Binding ToggleDrawerCommand}" Content="Close" />
+					<TextBlock Text="Tools &amp; Settings"
+							   FontSize="18" FontWeight="Bold"
+							   Foreground="White" Margin="0,0,0,20"/>
 
-    <!-- Input Area -->
-    <Border Grid.Row="2"  
-            BorderThickness="0,1,0,0" Padding="15">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBox Grid.Column="0" x:Name="MessageInput" 
-                 Text="{Binding CurrentMessage}" 
-                 Watermark="Type your message here... (Enter to send, Shift+Enter for new line)"
-                 AcceptsReturn="True" MaxHeight="100"
-                 VerticalAlignment="Center">
-        </TextBox>
-        <Button Grid.Column="1" Content="Send" Margin="10,0,0,0"
-                Command="{Binding SendMessageCommand}"
-                IsEnabled="{Binding !IsProcessing}"/>
-      </Grid>
-    </Border>
+					<!-- Sample controls in the drawer -->
+					<Expander Header="Agent Settings" IsExpanded="True" Margin="0,0,0,15">
+						<StackPanel Margin="10,10,0,0">
+							<TextBlock Text="Temperature:" Foreground="White" Margin="0,0,0,5"/>
+							<Slider Minimum="0" Maximum="2" Value="0.7" Width="200" HorizontalAlignment="Left"/>
 
-    <!-- Status Bar -->
-    <Border Grid.Row="3" Background="#343A40" Padding="15,8">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" 
-                   VerticalAlignment="Center" Foreground="White"/>
-        <StackPanel Grid.Column="1" Orientation="Horizontal">
-          <TextBlock Text="Status: " VerticalAlignment="Center" Foreground="White"/>
-          <Ellipse Width="8" Height="8" 
-                   Fill="{Binding IsConnected, Converter={x:Static vm:MainWindowViewModel.BooleanToBrushConverter}}"/>
-        </StackPanel>
-      </Grid>
-    </Border>
-  </Grid>
+							<TextBlock Text="Max Tokens:" Foreground="White" Margin="0,15,0,5"/>
+						</StackPanel>
+					</Expander>
+
+					<Expander Header="Tool Proxy Status" IsExpanded="True" Margin="0,0,0,15">
+						<StackPanel Margin="10,10,0,0">
+							<StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+								<TextBlock Text="Status: " Foreground="White" VerticalAlignment="Center"/>
+								<Ellipse Width="10" Height="10" Margin="5,0,0,0"
+										 Fill="{Binding IsConnected, Converter={x:Static vm:MainWindowViewModel.BooleanToBrushConverter}}"/>
+								<TextBlock Text="{Binding IsConnected, StringFormat='Connected: {0}'}"
+										   Foreground="White" Margin="5,0,0,0" VerticalAlignment="Center"/>
+							</StackPanel>
+
+							<Button Content="Refresh Tools" Background="#4C566A" Foreground="White"
+									HorizontalAlignment="Left" Padding="10,5"/>
+							<Button Content="Search Tools" Background="#5E81AC" Foreground="White"
+									HorizontalAlignment="Left" Padding="10,5" Margin="0,5,0,0"/>
+						</StackPanel>
+					</Expander>
+
+					<Expander Header="Quick Actions" IsExpanded="False" Margin="0,0,0,15">
+						<StackPanel Margin="10,10,0,0">
+							<Button Content="Export Chat" Background="#A3BE8C" Foreground="White"
+									HorizontalAlignment="Left" Padding="10,5" Margin="0,0,0,5"/>
+							<Button Content="Import Chat" Background="#EBCB8B" Foreground="Black"
+									HorizontalAlignment="Left" Padding="10,5" Margin="0,0,0,5"/>
+							<Button Content="Settings" Background="#B48EAD" Foreground="White"
+									HorizontalAlignment="Left" Padding="10,5"/>
+						</StackPanel>
+					</Expander>
+
+					<!-- Sample list with recent tools -->
+					<Expander Header="Recent Tools" IsExpanded="False">
+						<ListBox Background="Transparent" Margin="10,10,0,0" Height="150">
+							<ListBoxItem Foreground="White" Padding="5">
+								<StackPanel Orientation="Horizontal">
+									<TextBlock Text="🔧" Margin="0,0,5,0"/>
+									<TextBlock Text="Sequential Thinking"/>
+								</StackPanel>
+							</ListBoxItem>
+							<ListBoxItem Foreground="White" Padding="5">
+								<StackPanel Orientation="Horizontal">
+									<TextBlock Text="📚" Margin="0,0,5,0"/>
+									<TextBlock Text="Context7 Docs"/>
+								</StackPanel>
+							</ListBoxItem>
+							<ListBoxItem Foreground="White" Padding="5">
+								<StackPanel Orientation="Horizontal">
+									<TextBlock Text="🧠" Margin="0,0,5,0"/>
+									<TextBlock Text="Mental Models"/>
+								</StackPanel>
+							</ListBoxItem>
+							<ListBoxItem Foreground="White" Padding="5">
+								<StackPanel Orientation="Horizontal">
+									<TextBlock Text="🔍" Margin="0,0,5,0"/>
+									<TextBlock Text="Tool Search"/>
+								</StackPanel>
+							</ListBoxItem>
+						</ListBox>
+					</Expander>
+				</StackPanel>
+			</Border>
+		</SplitView.Pane>
+
+		<!-- SplitView Content Area -->
+		<SplitView.Content>
+			<DockPanel>
+				<!-- Main Content Area -->
+				<Grid RowDefinitions="Auto,*,Auto,Auto">
+
+					<!-- Toolbar -->
+					<Border Grid.Row="0" Padding="15,10">
+						<Grid ColumnDefinitions="*,Auto,Auto">
+							<TextBlock Grid.Column="0" Text="ToolProxy Chat Assistant"
+									   VerticalAlignment="Center" Foreground="White" FontWeight="Bold" FontSize="16"/>
+							<Button Grid.Column="1" Content="Clear History"
+									Command="{Binding ClearHistoryCommand}"
+									Background="Transparent" Foreground="White" BorderBrush="White"
+									Margin="0,0,10,0"/>
+							<Button Grid.Column="2" Content="☰" FontSize="16"
+										  Command="{Binding ToggleDrawerCommand}"
+										  Background="Transparent" Foreground="White" BorderBrush="White"
+										  Padding="10,5" ToolTip.Tip="Toggle Tools Panel"/>
+						</Grid>
+					</Border>
+
+					<!-- Chat Messages -->
+					<ScrollViewer Grid.Row="1" Name="ChatScrollViewer" VerticalScrollBarVisibility="Auto" Foreground="#666">
+						<ItemsControl ItemsSource="{Binding Messages}" Margin="10">
+							<ItemsControl.ItemTemplate>
+								<DataTemplate>
+									<Border Margin="5" Padding="15" CornerRadius="10" MaxWidth="800"
+											Background="{Binding Role, Converter={x:Static vm:MainWindowViewModel.MessageBackgroundConverter}}"
+											HorizontalAlignment="{Binding Role, Converter={x:Static vm:MainWindowViewModel.MessageAlignmentConverter}}">
+										<StackPanel>
+											<TextBlock Text="{Binding Role}" FontWeight="Bold" FontSize="12"
+													  Foreground="#666" Margin="0,0,0,5"/>
+											<md:MarkdownScrollViewer Markdown="{Binding Content}">
+												<md:MarkdownScrollViewer.MarkdownStyle>
+													<Style>
+														<Style Selector=".Markdown_Avalonia_MarkdownViewer TextBlock.CodeBlock">
+															<Style.Setters>
+																<Setter Property="Foreground" Value="#333" />
+															</Style.Setters>
+														</Style>
+														<Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CCode">
+															<Style.Setters>
+																<Setter Property="Foreground" Value="#333" />
+															</Style.Setters>
+														</Style>
+													</Style>
+												</md:MarkdownScrollViewer.MarkdownStyle>
+											</md:MarkdownScrollViewer>
+											<TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}"
+													  Foreground="#666" FontSize="10" Opacity="0.6" HorizontalAlignment="Right" Margin="0,5,0,0"/>
+										</StackPanel>
+									</Border>
+								</DataTemplate>
+							</ItemsControl.ItemTemplate>
+						</ItemsControl>
+					</ScrollViewer>
+
+					<!-- Input Area -->
+					<Border Grid.Row="2"
+							BorderThickness="0,1,0,0" Padding="15">
+						<Grid ColumnDefinitions="*,Auto">
+							<TextBox Grid.Column="0" x:Name="MessageInput"
+									 Text="{Binding CurrentMessage}"
+									 Watermark="Type your message here... (Enter to send, Shift+Enter for new line)"
+									 AcceptsReturn="True" MaxHeight="100"
+									 VerticalAlignment="Center">
+							</TextBox>
+							<Button Grid.Column="1" Content="Send" Margin="10,0,0,0"
+									Command="{Binding SendMessageCommand}"
+									IsEnabled="{Binding !IsProcessing}"/>
+						</Grid>
+					</Border>
+
+					<!-- Status Bar -->
+					<Border Grid.Row="3" Background="#343A40" Padding="15,8">
+						<Grid ColumnDefinitions="*,Auto">
+							<TextBlock Grid.Column="0" Text="{Binding StatusMessage}"
+									   VerticalAlignment="Center" Foreground="White"/>
+							<StackPanel Grid.Column="1" Orientation="Horizontal">
+								<TextBlock Text="Status: " VerticalAlignment="Center" Foreground="White"/>
+								<Ellipse Width="8" Height="8"
+										 Fill="{Binding IsConnected, Converter={x:Static vm:MainWindowViewModel.BooleanToBrushConverter}}"/>
+							</StackPanel>
+						</Grid>
+					</Border>
+				</Grid>
+			</DockPanel>
+		</SplitView.Content>
+	</SplitView>
 </Window>
