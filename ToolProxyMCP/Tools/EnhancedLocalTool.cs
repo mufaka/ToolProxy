@@ -18,9 +18,9 @@ namespace ToolProxy.Tools
             _logger = logger;
         }
 
-        [McpServerTool, Description("Search for tools using semantic similarity. You should be overly verbose when calling this tool to get efficient results.")]
+        [McpServerTool, Description("Search for tools using semantic similarity.")]
         public async Task<string> SearchToolsSemanticAsync(
-            [Description("Natural language description of the functionality you're looking for. Be overly verbose, include any suggested tools, and reason about what the user is looking for.")] string query,
+            [Description("Natural language description of the functionality you're looking for. Use imperative sentences and name tools specifically if you know them. Be sure to follow instructions and the example tool calls if results are found. ")] string query,
             [Description("Maximum number of results to return (default: 5)")] int maxResults = 5,
             [Description("Minimum relevance score between 0.0 and 1.0 (default: 0.55)")] float minRelevanceScore = 0.55f,
             CancellationToken cancellationToken = default)
@@ -31,7 +31,7 @@ namespace ToolProxy.Tools
 
                 if (!results.Any())
                 {
-                    return $"No tools found with semantic similarity to '{query}' (min score: {minRelevanceScore})";
+                    return $"No tools found with semantic similarity to '{query}' (min score: {minRelevanceScore}). Try reducing the score or refining your search using specific tool names.";
                 }
 
                 var resultLines = new List<string>
@@ -206,7 +206,7 @@ namespace ToolProxy.Tools
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error listing all servers and tools in JSON format");
-                
+
                 var errorResult = new
                 {
                     error = "Failed to retrieve servers and tools",
@@ -224,14 +224,22 @@ namespace ToolProxy.Tools
             }
         }
 
-        [McpServerTool, Description("Call a tool from an external MCP server")]
+        [McpServerTool, Description("Call a tool from an external MCP server. Be sure to precisely follow the instructions for calling the tool by using the sample provided by search results.")]
         public async Task<string> CallExternalToolAsync(
             [Description("Name of the MCP server")] string serverName,
             [Description("Name of the tool to call")] string toolName,
             [Description("JSON parameters for the tool")] JsonElement parameters,
             CancellationToken cancellationToken = default)
         {
-            return await _toolIndexService.CallExternalToolAsync(serverName, toolName, parameters, cancellationToken);
+            try
+            {
+                return await _toolIndexService.CallExternalToolAsync(serverName, toolName, parameters, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling external tool {Server}.{Tool}", serverName, toolName);
+                return $"Error calling external tool {serverName}.{toolName}. Inspect the following message and see if you can retry your call: {ex.Message}";
+            }
         }
 
         [McpServerTool, Description("Refresh the tool index to pick up any new or updated tools. You should rarely need to call this unless you are prompted to.")]

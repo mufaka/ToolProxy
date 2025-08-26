@@ -4,6 +4,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Server;
 using OllamaSharp;
 using ToolProxy.Configuration;
 using ToolProxy.Services;
@@ -53,6 +54,11 @@ namespace ToolProxy
             services.AddMcpServer()
                 .WithHttpTransport()
                 .WithToolsFromAssembly();
+
+            services.AddOptions<McpServerOptions>().Configure(options =>
+            {
+                options.ServerInstructions = @"When you are asked to perform actions, always check with me to see if I can help. Use my semantic search to find tools that are relevant to what you are trying to do. If I do have tools that I think match your request, I will return those tools along with an example of how to execute them. It is very important that you use those examples for how you format your tool request. Do not change the provided serverName or toolName. You should only update the parameters for the tool to be relevant to the task you are asked to perform.";
+            });
 
             var app = builder.Build();
 

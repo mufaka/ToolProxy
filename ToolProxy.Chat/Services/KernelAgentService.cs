@@ -207,53 +207,6 @@ public class KernelAgentService : IKernelAgentService
         }
     }
 
-    private List<ServerInfo> ParseToolsFromResult(string result)
-    {
-        var servers = new Dictionary<string, List<ToolInfo>>();
-
-        // Parse the semantic search result to extract server.tool information
-        var lines = result.Split('\n');
-
-        foreach (var line in lines)
-        {
-            // Look for lines that match the pattern "ServerName.ToolName (Score: X.XXX)"
-            if (line.Contains('.') && line.Contains("(Score:"))
-            {
-                var parts = line.Split('.');
-                if (parts.Length >= 2)
-                {
-                    var serverName = parts[0].Trim();
-                    var toolPart = parts[1];
-                    var toolName = toolPart.Split(' ').FirstOrDefault()?.Trim() ?? "";
-
-                    if (!string.IsNullOrEmpty(serverName) && !string.IsNullOrEmpty(toolName))
-                    {
-                        if (!servers.ContainsKey(serverName))
-                        {
-                            servers[serverName] = new List<ToolInfo>();
-                        }
-
-                        // Find the description on the next line
-                        var description = "No description available";
-                        var currentIndex = Array.IndexOf(lines, line);
-                        if (currentIndex + 1 < lines.Length)
-                        {
-                            var nextLine = lines[currentIndex + 1].Trim();
-                            if (nextLine.StartsWith("    ") && !nextLine.StartsWith("    Parameters:"))
-                            {
-                                description = nextLine.Trim();
-                            }
-                        }
-
-                        servers[serverName].Add(new ToolInfo(toolName, description, new Dictionary<string, object>()));
-                    }
-                }
-            }
-        }
-
-        return servers.Select(kvp => new ServerInfo(kvp.Key, $"{kvp.Key} Server", kvp.Value)).ToList();
-    }
-
     public async Task<List<ServerInfo>> GetAvailableToolsAsync()
     {
         if (!_cachedTools.Any())
@@ -318,16 +271,24 @@ public class KernelAgentService : IKernelAgentService
         // maybe we can just tell the LLM to be overly verbose when using semantic search?
 
         // Add user message to history
+        /*
         var userMessage = new ChatMessage
         {
             Content = prompt,
             Role = ChatRole.User, // what is the difference between ChatRole and AuthorRole?
             Timestamp = DateTime.Now
         };
+        */
 
         // Get the response from the agent (it returns IAsyncEnumerable)
         var responseBuilder = new StringBuilder();
-        await foreach (var responseItem in _agent!.InvokeAsync(prompt, _agentThread))
+
+        var options = new AgentInvokeOptions
+        {
+            AdditionalInstructions = "Answer questions as if you were an angry pirate!"
+        };
+
+        await foreach (var responseItem in _agent!.InvokeAsync(prompt, _agentThread, options))
         {
             // Try to access the actual content from the response item
             if (responseItem.Message.Content != null && !String.IsNullOrWhiteSpace(responseItem.Message.Content))
@@ -340,12 +301,14 @@ public class KernelAgentService : IKernelAgentService
         var assistantResponse = responseBuilder.ToString();
 
         // Add assistant response to history
+        /*
         var assistantMessage = new ChatMessage
         {
             Content = assistantResponse,
             Role = ChatRole.Assistant,
             Timestamp = DateTime.Now
         };
+        */
 
         return assistantResponse;
     }

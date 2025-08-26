@@ -115,7 +115,7 @@ namespace ToolProxy.Services
             var server = await _mcpManager.GetServerAsync(serverName, cancellationToken);
             if (server == null)
             {
-                throw new InvalidOperationException($"Server '{serverName}' not found or not running");
+                throw new InvalidOperationException($"Server '{serverName}' not found or not running. Is this the server your were given in the sample call provided be search results? If not, try again by following the instructions given.");
             }
 
             return await server.CallToolAsync(toolName, parameters, cancellationToken);

@@ -308,7 +308,7 @@ namespace ToolProxy.Services
 
             if (!AvailableTools.Contains(toolName))
             {
-                throw new ArgumentException($"Tool {toolName} is not available on server {Name}. Available tools: {string.Join(", ", AvailableTools)}");
+                throw new ArgumentException($"Tool {toolName} is not available on server {Name}. Be sure to follow the example given in the tool search result and try again. The available tools for this server: {string.Join(", ", AvailableTools)}");
             }
 
             try
