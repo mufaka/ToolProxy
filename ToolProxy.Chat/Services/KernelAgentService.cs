@@ -264,23 +264,6 @@ public class KernelAgentService : IKernelAgentService
         if (_kernel == null)
             throw new InvalidOperationException("Kernel not initialized. Call InitializeAsync first.");
 
-        // can we be smarter about giving hints on the tools to use based on the prompt?
-        // if a prompt names a specific server, we should coerce the LLM to include that name with the semantic search call.
-        // but do we need to know the intent of the server mention? what if the server name is generic, like 'fetch'?
-
-        // maybe we can just tell the LLM to be overly verbose when using semantic search?
-
-        // Add user message to history
-        /*
-        var userMessage = new ChatMessage
-        {
-            Content = prompt,
-            Role = ChatRole.User, // what is the difference between ChatRole and AuthorRole?
-            Timestamp = DateTime.Now
-        };
-        */
-
-        // Get the response from the agent (it returns IAsyncEnumerable)
         var responseBuilder = new StringBuilder();
 
         var options = new AgentInvokeOptions
@@ -290,27 +273,13 @@ public class KernelAgentService : IKernelAgentService
 
         await foreach (var responseItem in _agent!.InvokeAsync(prompt, _agentThread, options))
         {
-            // Try to access the actual content from the response item
             if (responseItem.Message.Content != null && !String.IsNullOrWhiteSpace(responseItem.Message.Content))
             {
                 responseBuilder.Append(responseItem.Message.Content);
             }
         }
 
-        // Extract the complete response content
-        var assistantResponse = responseBuilder.ToString();
-
-        // Add assistant response to history
-        /*
-        var assistantMessage = new ChatMessage
-        {
-            Content = assistantResponse,
-            Role = ChatRole.Assistant,
-            Timestamp = DateTime.Now
-        };
-        */
-
-        return assistantResponse;
+        return responseBuilder.ToString();
     }
 
     public async IAsyncEnumerable<string> InvokeStreamingAsync(string prompt)
