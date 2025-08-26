@@ -18,6 +18,7 @@ namespace ToolProxy.Services
         private bool _disposed;
         private List<ToolInfo> _discoveredTools = new();
         private bool _toolsDiscovered = false;
+        private string? _serverInstructions;
 
         public ManagedMcpServer(McpServerConfig config, ILogger<ManagedMcpServer> logger)
         {
@@ -28,6 +29,7 @@ namespace ToolProxy.Services
         public string Name => _config.Name;
         public string Description => _config.Description;
         public bool IsEnabled => _config.Enabled;
+        public string ServerInstructions => _serverInstructions ?? "";
 
         // Return discovered tool names if available, otherwise fall back to configuration
         public IReadOnlyList<string> AvailableTools =>
@@ -72,6 +74,13 @@ namespace ToolProxy.Services
 
                 // Create MCP client using the official factory
                 _mcpClient = await McpClientFactory.CreateAsync(_clientTransport);
+
+
+                if (!String.IsNullOrEmpty(_mcpClient.ServerInstructions))
+                {
+                    _serverInstructions = _mcpClient.ServerInstructions;
+                    _logger.LogInformation("MCP server {Name} instructions: {Instructions}", Name, _mcpClient.ServerInstructions);
+                }
 
                 _logger.LogInformation("Started MCP server {Name} successfully", Name);
 

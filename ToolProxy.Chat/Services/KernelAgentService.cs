@@ -128,7 +128,7 @@ public class KernelAgentService : IKernelAgentService
         await foreach (var responseItem in _agent!.InvokeAsync(prompt, _agentThread))
         {
             // Try to access the actual content from the response item
-            if (responseItem.Message.Content != null)
+            if (responseItem.Message.Content != null && !String.IsNullOrWhiteSpace(responseItem.Message.Content))
             {
                 responseBuilder.Append(responseItem.Message.Content);
             }
