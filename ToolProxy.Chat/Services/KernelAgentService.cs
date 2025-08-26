@@ -285,7 +285,7 @@ public class KernelAgentService : IKernelAgentService
 
         var options = new AgentInvokeOptions
         {
-            AdditionalInstructions = "Answer questions as if you were an angry pirate!"
+            AdditionalInstructions = _config.Agent.AdditionalInstructions
         };
 
         await foreach (var responseItem in _agent!.InvokeAsync(prompt, _agentThread, options))

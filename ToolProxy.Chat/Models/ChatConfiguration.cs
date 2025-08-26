@@ -23,6 +23,7 @@ public class ToolProxyConfiguration
 public class AgentConfiguration
 {
     public string SystemPrompt { get; set; } = string.Empty;
+    public string AdditionalInstructions { get; set; } = string.Empty;
 }
 
 public record ChatMessage
