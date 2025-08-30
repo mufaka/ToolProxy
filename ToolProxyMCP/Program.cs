@@ -4,6 +4,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
 using ModelContextProtocol.Server;
 using OllamaSharp;
 using ToolProxy.Configuration;
@@ -128,10 +129,10 @@ namespace ToolProxy
 
         private static void ConfigureSemanticKernelServices(IServiceCollection services, SemanticKernelSettings settings)
         {
-            // Add HTTP client for Ollama
-            services.AddHttpClient("Ollama", client =>
+            // Add HTTP client for Ollama embeddings
+            services.AddHttpClient("OllamaEmbedding", client =>
             {
-                client.BaseAddress = new Uri(settings.Ollama.BaseUrl);
+                client.BaseAddress = new Uri(settings.OllamaEmbedding.BaseUrl);
                 client.Timeout = TimeSpan.FromMinutes(5); // Embedding generation can take time
             });
 
@@ -140,17 +141,41 @@ namespace ToolProxy
             services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(serviceProvider =>
             {
                 var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
-                var httpClient = httpClientFactory.CreateClient("Ollama");
-                var ollamaClient = new OllamaApiClient(httpClient, settings.Ollama.ModelName);
+                var httpClient = httpClientFactory.CreateClient("OllamaEmbedding");
+                var ollamaClient = new OllamaApiClient(httpClient, settings.OllamaEmbedding.ModelName);
 
                 IEmbeddingGenerator<string, Embedding<float>> generator = ollamaClient;
                 return generator;
             });
 
-            // Register the Semantic Kernel-based tool index service
-            services.AddSingleton<IToolIndexService, SemanticKernelToolIndexService>();
+            if (settings.UseEnhancedPhraseGeneration)
+            {
+                // Add HTTP client for Ollama chat completions (may be the same endpoint as embeddings)
+                services.AddHttpClient("OllamaChat", client =>
+                {
+                    client.BaseAddress = new Uri(settings.OllamaChat.BaseUrl);
+                    client.Timeout = TimeSpan.FromMinutes(5); // Chat completion can take time
+                });
 
-            Console.WriteLine($"Semantic Kernel configured with Ollama embeddings: {settings.Ollama.BaseUrl} / {settings.Ollama.ModelName}");
+                // Add Semantic Kernel with Ollama chat completion service for enhanced phrase generation
+                services.AddKernel()
+                    .AddOllamaChatCompletion(
+                        modelId: settings.OllamaChat.ModelName,
+                        endpoint: new Uri(settings.OllamaChat.BaseUrl));
+
+                // Register the Enhanced Semantic Kernel-based tool index service with chat completion support
+                services.AddSingleton<IToolIndexService, EnhancedSemanticKernelToolIndexService>();
+
+                Console.WriteLine($"Enhanced Semantic Kernel configured with Ollama embeddings: {settings.OllamaEmbedding.BaseUrl} / {settings.OllamaEmbedding.ModelName}");
+                Console.WriteLine($"Enhanced Semantic Kernel configured with Ollama chat completions: {settings.OllamaChat.BaseUrl} / {settings.OllamaChat.ModelName}");
+            }
+            else
+            {
+                // Register the standard Semantic Kernel-based tool index service
+                services.AddSingleton<IToolIndexService, SemanticKernelToolIndexService>();
+
+                Console.WriteLine($"Standard Semantic Kernel configured with Ollama embeddings: {settings.OllamaEmbedding.BaseUrl} / {settings.OllamaEmbedding.ModelName}");
+            }
         }
     }
 }

@@ -58,13 +58,24 @@ Content-Type: application/json
   "minRelevanceScore": 0.3
 }
 
-### Test search-tools minimal parameters (using defaults)
+### Test search-tools ambiguous prompt
 POST http://localhost:3030/search-tools
 Content-Type: application/json
 
 {
-  "prompt": "create generate content writing"
+  "prompt": "save a memory",
+  "minRelevanceScore": 0.5
 }
+
+### Test search-tools contextual prompt
+POST http://localhost:3030/search-tools
+Content-Type: application/json
+
+{
+  "prompt": "write a memory",
+  "minRelevanceScore": 0.5
+}
+
 
 ### Check tool index status before testing
 GET http://localhost:3030/tool-index-info

@@ -5,12 +5,13 @@ A sophisticated Model Context Protocol (MCP) server that acts as a proxy and agg
 ## Features
 
 - **Multi-Server MCP Proxy**: Connect to and manage multiple external MCP servers simultaneously
-- **Semantic Tool Search**: AI-powered tool discovery using vector embeddings and natural language queries
+- **Enhanced Semantic Tool Search**: AI-powered tool discovery using vector embeddings, natural language queries, and LLM-generated search phrases
 - **Multiple Transport Support**: STDIO, HTTP, and SSE transport protocols
 - **Tool Discovery**: Automatic discovery and indexing of tools from connected MCP servers
 - **REST API**: HTTP endpoints for health checks and tool information
 - **Real-time Tool Refresh**: Dynamic updating of tool indexes without server restart
 - **Vector-Based Search**: Semantic similarity search powered by Ollama embeddings
+- **Intelligent Phrase Generation**: Uses chat completions to generate optimized search phrases for improved semantic matching
 
 ## Motivation
 The Model Context Protocol (MCP) enables AI systems to interact with external tools and services. However, as the number of available MCP servers grows, discovering the right tool for a specific task becomes challenging. This project addresses this by providing a unified MCP server that aggregates multiple external servers and enhances tool discovery through semantic search.
@@ -111,10 +112,17 @@ Remember that you can use the tool-proxy tool to search for tools that can help 
       "CollectionName": "mcp_tools_vector_index",
       "EmbeddingDimensions": 1536
     },
-    "Ollama": {
+    "OllamaEmbedding": {
       "BaseUrl": "http://localhost:11434",
-      "ModelName": "mxbai-embed-large"
-    }
+      "ModelName": "nomic-embed-text"
+    },
+    "OllamaChat": {
+      "BaseUrl": "http://localhost:11434",
+      "ModelName": "qwen2.5:7b-instruct",
+      "Temperature": 0.1,
+      "PhraseGenerationPrompt": "Create a search phrase for: {1} from {0}. Description: {2}. Parameters: {3}. Return only the phrase."
+    },
+    "UseEnhancedPhraseGeneration": true
   },
   "McpServers": [
     {
@@ -123,15 +131,6 @@ Remember that you can use the tool-proxy tool to search for tools that can help 
       "Transport": "stdio",
       "Command": "cmd.exe",
       "Args": [ "/c", "npx", "-y", "@upstash/context7-mcp@latest" ],
-      "Enabled": true,
-      "Tools": []
-    },
-    {
-      "Name": "Sequential Thinking",
-      "Description": "Reduces complex tasks into simpler steps, reasons about plans",
-      "Transport": "stdio",
-      "Command": "cmd.exe",
-      "Args": [ "/c", "npx", "-y", "@modelcontextprotocol/server-sequential-thinking" ],
       "Enabled": true,
       "Tools": []
     }
@@ -143,6 +142,49 @@ Remember that you can use the tool-proxy tool to search for tools that can help 
     }
   }
 }
+```
+
+### Enhanced Phrase Generation
+
+The enhanced phrase generation feature improves semantic search accuracy by using an LLM to generate optimized search phrases for each tool before creating embeddings. This approach provides:
+
+#### Benefits
+- **Better Semantic Matching**: LLM-generated phrases capture tool purposes and use cases more comprehensively
+- **Improved Search Results**: Higher relevance scores for semantically related tools
+- **Enhanced Discoverability**: Tools are found even when queries use different terminology
+- **Context-Aware Phrases**: Generated phrases include synonyms and alternative terms
+
+#### Configuration Options
+- **`UseEnhancedPhraseGeneration`**: Enable/disable the enhanced service (default: `true`)
+- **`OllamaChat.ModelName`**: Chat model for phrase generation (e.g., `qwen2.5:7b-instruct`)
+- **`OllamaChat.Temperature`**: Temperature for phrase generation (default: `0.1` for deterministic results)
+- **`OllamaChat.PhraseGenerationPrompt`**: Customizable prompt template for phrase generation (supports placeholders: `{0}` = Server, `{1}` = Tool Name, `{2}` = Description, `{3}` = Parameters)
+- **`OllamaEmbedding.ModelName`**: Embedding model for vector search (e.g., `nomic-embed-text`)
+
+#### Performance Considerations
+- **Initial Index Build**: Takes longer as phrases are generated for each tool
+- **Memory Usage**: Slightly higher due to additional chat completion service
+- **Model Switching**: Optimized to generate all phrases before embeddings to minimize Ollama model switching overhead
+
+#### Fallback Mechanism
+If phrase generation fails for any tool, the service automatically falls back to a simpler phrase construction to ensure robust operation.
+
+#### Customizing the Phrase Generation Prompt
+The prompt used for generating search phrases can be customized via the `PhraseGenerationPrompt` setting. The prompt template supports the following placeholders:
+- **`{0}`**: Server name
+- **`{1}`**: Tool name  
+- **`{2}`**: Tool description
+- **`{3}`**: Tool parameters (formatted as "name (type): description")
+
+When customizing the prompt, ensure it:
+1. Instructs the LLM to return only the phrase (no explanations)
+2. Provides clear requirements for the phrase structure
+3. Uses `string.Format` compatible placeholders
+4. Maintains the critical instruction to avoid adding explanatory text
+
+Example custom prompt:
+```json
+"PhraseGenerationPrompt": "Create a search phrase for this tool.\n\nTool: {1} from {0}\nDescription: {2}\nParameters: {3}\n\nReturn only the phrase, nothing else."
 ```
 
 ### MCP Server Configuration Options
@@ -200,7 +242,8 @@ Remember that you can use the tool-proxy tool to search for tools that can help 
 3. **Start Ollama** (if using semantic search):
    ```bash
    ollama serve
-   ollama pull mxbai-embed-large # or nomic-embed-text for larger context
+   ollama pull nomic-embed-text  # For embeddings
+   ollama pull qwen2.5:7b-instruct  # For enhanced phrase generation (optional)
    ```
 
 4. **Run the server:**

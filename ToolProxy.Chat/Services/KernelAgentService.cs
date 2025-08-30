@@ -20,7 +20,6 @@ public interface IKernelAgentService
     Task InitializeAsync();
     Task<string> InvokeAsync(string prompt);
     IAsyncEnumerable<string> InvokeStreamingAsync(string prompt);
-    // Task<List<ChatMessage>> GetHistoryAsync(); // see TODO below in implementation
     Task ClearHistoryAsync();
     Task<List<ServerInfo>> GetAvailableToolsAsync();
     Task RefreshToolsAsync();
@@ -66,12 +65,11 @@ public class KernelAgentService : IKernelAgentService
             // Cache the tools for UI display
             await CacheToolsAsync();
 
-            // Create kernel with Ollama and tools
+            // Create kernel with Ollama for chat completions
             var builder = Kernel.CreateBuilder();
             builder.AddOllamaChatCompletion(
                 modelId: _config.Ollama.ModelName,
                 endpoint: new Uri(_config.Ollama.BaseUrl));
-
 
             _kernel = builder.Build();
 

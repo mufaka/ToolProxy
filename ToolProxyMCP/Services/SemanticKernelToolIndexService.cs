@@ -66,11 +66,11 @@ namespace ToolProxy.Services
                 // Generate embedding for the search query
                 var queryEmbedding = await _embeddingGenerator.GenerateAsync(query);
                 var collection = _vectorStore.GetCollection<string, ToolVectorRecord>("tool_index");
-                var vectorStoreResults = collection.SearchAsync(queryEmbedding, maxResults);
+                var vectorResults = collection.SearchAsync(queryEmbedding, maxResults);
 
                 var results = new List<ToolSearchResult>();
 
-                foreach (var result in await vectorStoreResults.ToListAsync())
+                foreach (var result in await vectorResults.ToListAsync())
                 {
                     _logger.LogDebug("Vector store search result: {Id} with score {Score}",
                         result.Record.Id, result.Score);
@@ -173,18 +173,104 @@ namespace ToolProxy.Services
             }
         }
 
+        /*
+            How we embed a tool for semantic search is extremely important. Embeddings are stored in a manner that will be "close" to queries that are semantically 
+            similar. We want to provide as much relevant context as possible without overwhelming the model with too much information. There is a balance to be struck 
+            between providing enough detail about the tool and its parameters, while keeping the input concise.
+
+            We also have to contend with the fact that multiple tools from different servers may have descriptions that are semantically similar but contextually different.
+
+            eg: 
+                A tool named addMemory,  described as "Store a memory for a project (uses context project if not provided)" 
+                A tool named write_memory, described as "Write some information about this project that can be useful for future tasks to a memory in md format.\nThe memory name should be meaningful."
+
+            Both tools are about storing information, but the context (project memory vs general memory) is different. A semantic search for "save a memory" would return both
+            tools as relevant, but the ambiguity of the search could lead to confusion about which tool to use.
+
+            Using and embedding input of: var embeddingInput = $"{serverName} has a tool named {tool.Name} that can be used for: {tool.Description}."; Is aimed at helping 
+            distinguish between tools by providing context, but that also introduces the potential of picking tools from the server that might not be relevant to the task 
+            by ranking them higher due to the server context.
+
+            eg: "save a memory" returns the following results:
+
+              "tools": [
+                {
+                  "serverName": "Project Pilot",
+                  "name": "addMemory",
+                  "description": "Store a memory for a project (uses context project if not provided)",
+                  "relevanceScore": 0.62376606,
+                    ...
+                },
+                {
+                  "serverName": "Serena",
+                  "name": "write_memory",
+                  "description": "Write some information about this project that can be useful for future tasks to a memory in md format.\nThe memory name should be meaningful.",
+                  "relevanceScore": 0.58559597,
+                    ...
+                }
+              ]
+
+            eg: "serena, save a memory" returns the following results:
+
+              "tools": [
+                {
+                  "serverName": "Serena",
+                  "name": "list_memories",
+                  "description": "List available memories. Any memory can be read using the `read_memory` tool.",
+                  "relevanceScore": 0.64463073,
+                  "parameters": []
+                },
+                {
+                  "serverName": "Serena",
+                  "name": "prepare_for_new_conversation",
+                  "description": "Instructions for preparing for a new conversation. This tool should only be called on explicit user request.",
+                  "relevanceScore": 0.6247413,
+                  "parameters": []
+                },
+                {
+                  "serverName": "Serena",
+                  "name": "think_about_collected_information",
+                  "description": "Think about the collected information and whether it is sufficient and relevant.\nThis tool should ALWAYS be called after you have completed a non-trivial sequence of searching steps like\nfind_symbol, find_referencing_symbols, search_files_for_pattern, read_file, etc.",
+                  "relevanceScore": 0.6163351,
+                  "parameters": []
+                },
+                {
+                  "serverName": "Serena",
+                  "name": "read_memory",
+                  "description": "Read the content of a memory file. This tool should only be used if the information\nis relevant to the current task. You can infer whether the information\nis relevant from the memory file name.\nYou should not read the same memory file multiple times in the same conversation.",
+                  "relevanceScore": 0.6146194,
+                    ...
+                },
+                {
+                  "serverName": "Serena",
+                  "name": "write_memory",
+                  "description": "Write some information about this project that can be useful for future tasks to a memory in md format.\nThe memory name should be meaningful.",
+                  "relevanceScore": 0.6106719,
+                    ...
+                }
+              ]
+
+            This is problematic because it's clear that even though the second result set is correctly picking the right server, it is ranking the tools in a way that is not helpful.
+            This issue here is that the write_memory tools description isn't sufficiently distinguishing itself as a save action.
+
+            Playing around with the embedding input does seem to help. eg: 
+                var embeddingInput = $"\"{tool.Description}\" can be performed by the tool named \"{tool.Name}\". It is available from the server: {serverName}.";
+
+            But ultimately, this is going to be a limitation on the MCP server tool names and descriptions. If they aren't sufficiently descriptive and distinct, the embedding model will struggle 
+            to differentiate them.
+
+            One thought is to have an LLM use the server name, tool name, and description to generate an embedding phrase geared for being semantically searched against. BUt
+            that then introduces an external dependency. Maybe we make that a configuration option. If this is done, we need to generate all the phrases first and then do
+            the embedding because we don't want Ollama switching models back and forth for every tool.
+        */
         private async Task<ToolVectorRecord> CreateToolVectorRecordAsync(string serverName, string serverDescription, ToolInfo tool)
         {
             var parametersJson = JsonSerializer.Serialize(tool.Parameters);
             var parameterNames = string.Join(", ", tool.Parameters.Select(p => p.Name));
             var parameterDescriptions = string.Join("; ", tool.Parameters.Select(p => $"{p.Name}: {p.Description}"));
 
-            var embeddingInput = $"The {serverName} described as \"{serverDescription}\" has a tool named {tool.Name} that can be used for: {tool.Description}. The following parameters can be used when calling the tool:";
+            var embeddingInput = $"\"{tool.Name}\" that is used for \"{tool.Description}\". \"{tool.Name}\" is available from the server: {serverName}.";
 
-            if (tool.Parameters.Count > 0)
-            {
-                embeddingInput += $"{parameterDescriptions}.";
-            }
 
             // Use the server name, tool name and description to generate the embedding. 
             var embedding = await _embeddingGenerator.GenerateAsync(embeddingInput);

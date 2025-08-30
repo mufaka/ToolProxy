@@ -59,9 +59,14 @@ namespace ToolProxy.Models
 
         /// <summary>
         /// Vector embedding of the searchable text for semantic similarity search.
+        /// 
+        /// NOTE: In Memory, currently, only use the Flat index kind regardless of what is specified here. This may change in the future.
+        /// NOTE: A Flat index is akin to a table scan in a database. It checks every vector in the collection to find the closest matches. This should
+        ///       be fine for this use case as the number of tools is expected to be relatively small.
+        /// https://learn.microsoft.com/en-us/semantic-kernel/concepts/vector-store-connectors/out-of-the-box-connectors/inmemory-connector?pivots=programming-language-csharp
         /// </summary>
         [JsonPropertyName("embedding")]
-        [VectorStoreVector(Dimensions: 512, DistanceFunction = DistanceFunction.CosineSimilarity, IndexKind = IndexKind.Hnsw)]
+        [VectorStoreVector(Dimensions: 1536, DistanceFunction = DistanceFunction.CosineSimilarity, IndexKind = IndexKind.Flat)]
         public ReadOnlyMemory<float> Embedding { get; set; }
 
         /// <summary>

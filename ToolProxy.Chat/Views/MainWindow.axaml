@@ -18,7 +18,7 @@
 
 	<SplitView IsPaneOpen="{Binding IsDrawerOpen}"
 			   DisplayMode="Inline"
-			   OpenPaneLength="450"
+			   OpenPaneLength="275"
 			   PanePlacement="Right">
 
 		<!-- Drawer Pane Content -->
