@@ -1,7 +1,6 @@
 ---
 name: toolproxy-serena-memory
-description: Project-scoped persistent memory via the Serena MCP server. List, read, write, edit, rename, and delete memory notes that persist across sessions for a given project — useful for capturing architecture decisions, gotchas, conventions, and other context that would be expensive to rediscover. Routes through the ToolProxy MCP server's call_external_tool dispatcher.
-when_to_use: When starting work on a project (to discover what context is already saved), when you've learned something non-obvious worth preserving for next session, or when existing notes need updating or cleanup. Distinct from the host's own memory system — these notes are scoped to the Serena project, not the host agent.
+description: Save, read, and manage project-scoped notes that persist across sessions — architecture decisions, gotchas, conventions, and other context expensive to rediscover later. Use this skill at the start of project work to discover what's already been captured ("anything we already know about this codebase?", "is there a memory about X?", "what notes do we have on this project?"), when something worth preserving has been learned ("save this for later", "add this to the project notes", "remember this"), or when cleaning up stale notes. Distinct from the host's own memory system — these notes are scoped specifically to this project. Especially worth checking before deep dives into unfamiliar code, since prior notes can save significant rediscovery time.
 ---
 
 # Serena: project memory (via ToolProxy)

@@ -1,7 +1,6 @@
 ---
 name: toolproxy-serena-session
-description: Session and project setup for the Serena MCP server — fetch session-specific runtime state (active project, available memories, programming languages) and run first-time project onboarding. Routes through the ToolProxy MCP server's call_external_tool dispatcher.
-when_to_use: When Serena's other tools fail with "no active project" errors, when you need to confirm which project is currently activated, when starting work on a brand-new project that hasn't been onboarded to Serena yet, or when you specifically need the runtime state (memories list, languages) that initial_instructions returns. Most sessions don't need this skill — reach for it only when a Serena tool is misbehaving or when first-time setup is required.
+description: Confirm which project is currently active for code-intelligence tools, fetch session-specific runtime state (active project name, list of saved project memories, recognized programming languages), and run first-time project onboarding. Use this skill when other code-intelligence tools fail with "no active project" errors, when starting work in a brand-new project that has never been onboarded, or when the user specifically asks which project is active or what memories exist for it ("is Serena running?", "what project is active?", "has this project been onboarded?"). Most sessions do not need this skill at all — reach for it only when something is misbehaving or when first-time setup is genuinely required, never preemptively.
 ---
 
 # Serena: session & onboarding (via ToolProxy)

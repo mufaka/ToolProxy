@@ -1,7 +1,6 @@
 ---
 name: toolproxy-serena-explore
-description: Semantic exploration of code symbols in established projects via the Serena MCP server. Locate classes, functions, and methods by name path; find references and call sites; survey what's in a file or directory — all without reading whole files. Routes through the ToolProxy MCP server's call_external_tool dispatcher.
-when_to_use: When a task requires finding where a symbol is defined, surveying what symbols live in a file or directory, or locating references to a symbol. Strongly prefer these tools over reading whole files for code discovery in any non-trivial codebase — they are dramatically more token-efficient and surface structure the host's Read tool cannot see.
+description: Locate classes, functions, methods, and other code symbols by name in an established codebase; survey what's inside a file or directory; and trace references and call sites — all without reading whole files. Use this skill any time the user asks where a symbol is defined, what's in a file, what calls a function, or otherwise wants to navigate or understand code structure, even when they don't name any specific tool ("where is X", "show me the Foo class", "what uses this method", "what's in McpManager.cs"). Strongly prefer over the host's Read tool for code discovery in any non-trivial codebase — dramatically more token-efficient and surfaces structure Read cannot.
 ---
 
 # Serena: code exploration (via ToolProxy)

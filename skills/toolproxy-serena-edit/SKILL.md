@@ -1,7 +1,6 @@
 ---
 name: toolproxy-serena-edit
-description: Symbol-aware and file-level code editing via the Serena MCP server. Replace method/class bodies, insert code adjacent to existing symbols, rename symbols across the project, safely delete symbols with reference checking, and perform regex-based sub-symbol edits. Routes through the ToolProxy MCP server's call_external_tool dispatcher.
-when_to_use: When a task requires modifying code in an established codebase — rewriting a method body, adding a new method to a class, renaming something, deleting a function safely, or changing a few lines inside a larger function. Strongly prefer over the host's Edit tool for any C#/Python/TypeScript/etc. file in a Serena-activated project.
+description: Modify code in an established project by editing at the symbol level — replace a method or class body, add a new method or function, rename a symbol project-wide with reference updates, safely delete a symbol with reference checking, or make small regex-based edits inside a larger function. Use this skill any time the user wants to change code in an existing project, including casual phrasings like "rename Foo to Bar", "fix this method", "add a method that does X", "delete the unused helper", "update the body of Y" — even when no specific editing tool is named. Strongly prefer over the host's Edit tool — these symbolic edits are reliable and project-wide aware, and the host's Edit tool is forbidden for code edits in Serena-activated projects.
 ---
 
 # Serena: code editing (via ToolProxy)
