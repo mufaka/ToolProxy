@@ -34,10 +34,10 @@ Lean on the host's existing **Agent Skills** primitive instead of trying to muta
 
 5. **Installation is an MCP tool the agent invokes, not a CLI subcommand.** **Decided.** The proxy exposes:
 
-   **`install_skills(project_root)`** — writes the proxy's full skill catalog into `<project_root>/.claude/skills/<skill-name>/SKILL.md`, creating directories as needed and **unconditionally overwriting** any existing files. Returns the list of installed paths plus a one-shot warning if `<project_root>/.claude/skills/` had to be created (the user will need to restart Claude Code once for live reload to start watching it; subsequent installs in the same project are seamless).
+   **`install_skills(skills_root)`** — writes the proxy's full skill catalog into `<skills_root>/<skill-name>/SKILL.md`, creating directories as needed and **unconditionally overwriting** any existing files. Returns the list of installed paths plus a one-shot warning if `<skills_root>` had to be created (on Claude Code, the user must restart once before live reload starts watching a freshly created directory; subsequent installs are seamless).
 
-   The agent supplies `project_root` based on user intent ("install ToolProxy's skills here"). Skills are always installed **project-locally, never globally** — the user opts in per project. There is no conflict prompt, no copy-alongside, no `--mode` flag: the proxy is the source of truth and the install is destructive by design. If a user wants different content in different projects, they curate that at the proxy source level.
-6. The proxy's MCP surface stays minimal: `call_external_tool(server, tool, arguments)` for dispatch, `install_skills(project_root)` for installation, plus maybe `list_servers` for debugging.
+   The agent supplies `skills_root` based on user intent ("install ToolProxy's skills here") and its host's conventions. For Claude Code project-local install — the recommended default — that's `<project_root>/.claude/skills`. The agent passes the full skills root, not just the project root; the proxy stays host-neutral and does not append `.claude/skills` itself. Skills should always be installed **project-locally, never globally** by user-facing guidance, but the proxy doesn't enforce this — it writes wherever the agent points. There is no conflict prompt, no copy-alongside, no `--mode` flag: the proxy is the source of truth and the install is destructive by design. If a user wants different content in different projects, they curate that at the proxy source level.
+6. The proxy's MCP surface stays minimal: `call_external_tool(server, tool, arguments)` for dispatch, `install_skills(skills_root)` for installation, plus maybe `list_servers` for debugging. **Parameter naming note:** `server` / `tool` / `arguments` are the pinned names — they supersede the current code's `serverName` / `toolName` / `parameters` (`EnhancedLocalTool.CallExternalToolAsync`). Shorter names cut per-call token overhead (see "Token economics" below), and `arguments` matches the MCP `tools/call` wire spec (`params.arguments`). The four hand-authored skill drafts already use this shape; the implementation must follow rather than carrying over the old names.
 7. The agent sees only skill descriptions in its base context. When a request matches one (or more), the host loads those bodies, and the agent now has focused server-specific guidance plus exact invocation examples.
 
 **Why this works well:**
@@ -46,14 +46,32 @@ Lean on the host's existing **Agent Skills** primitive instead of trying to muta
 - **Heavy descriptions are free.** Serena's verbose guidance lives in the skill body; never loaded until needed. Subsumes the description-deferral idea entirely.
 - **No protocol assumption.** Doesn't depend on `tools/list_changed`, doesn't depend on the client re-fetching anything mid-session.
 - **Cross-client.** Skills follow the open Agent Skills standard. Should work on Claude Code, GitHub Copilot, and Codex; degrades gracefully on clients that don't (they get the static `call_external_tool` + `list_servers` surface and can ignore skills).
-- **Live reload.** Claude Code watches `<project>/.claude/skills/` during a session — once the directory exists, re-running `install_skills` updates content in place and the agent picks up changes without restart. *(One-time caveat: the **first** install in a project creates `.claude/skills/`; if the session was started before that directory existed, the user has to restart Claude Code once for live-watch to engage. Subsequent installs in the same project are seamless.)*
+- **Live reload.** Claude Code watches `<skills_root>` (typically `<project>/.claude/skills/` for project-local installs) during a session — once the directory exists, re-running `install_skills` updates content in place and the agent picks up changes without restart. *(One-time caveat: the **first** install creates `<skills_root>` if it didn't exist; if the session was started before then, the user has to restart Claude Code once for live-watch to engage. Subsequent installs are seamless.)*
 - **No LLM at generation time.** Skills are hand-authored markdown — no embedding, no phrase rewriting, no Ollama dependency. Sidesteps the brittleness that killed the previous design.
 
-**Deferred (still open, parked for later):**
-- [ ] **Static vs dynamic content.** Some upstream tools (e.g. Serena's `initial_instructions`) return session-specific state (active project, memories list). Static guidance lives in the skill; the agent calls the dynamic tool only when it needs runtime state. Possible future refinement: proxy intercepts the dynamic tool to strip the static portion (since the skill already delivered it). User wants to revisit this after fully understanding the implications — do not act on it yet.
+**Token economics — proxy vs. native tool exposure.**
+
+The wrapper adds a small per-call cost but pays for itself on base-context savings before the first tool fires.
+
+*Per-call request-side overhead* (every dispatch through the proxy):
+- Wrapper tool name `call_external_tool` (~5 tok) vs. an upstream tool name like `find_symbol` (~3 tok) → +2 tok.
+- Envelope keys `"server"` / `"tool"` / `"arguments"` plus their string values → ~12-15 tok.
+- **Net: ~15-20 tokens per tool call.** This is the case for keeping the dispatch parameter names short — `server` / `tool` / `arguments` rather than `serverName` / `toolName` / `parameters`.
+
+*Base-context savings* (every turn, regardless of whether a tool fires):
+- Native exposure of a Serena-class server: ~20 tools × 150-300 tok of description each = **3,000-6,000 tok permanently in the base context.**
+- Skills replacement: 4 skill descriptions × ~200 tok ≈ **~800 tok.**
+- **Net: ~2,200-5,200 tok/turn saved.**
+
+*Per-skill body load* (one-time per session, only when invoked):
+- Bodies range ~700-2,000 tok across the four current Serena drafts (session ~700, memory ~1,500, explore ~1,500, edit ~2,000).
+- Lazy by design: only the matching skill's body is pulled in.
+
+The per-turn base savings clear the per-call wrapper overhead inside a single turn, even if no tools fire — description bloat hits every turn, the wrapper hits only on dispatches. The wrapper cost is amortized; the base savings are constant.
 
 **Resolved (recorded for reference):**
-- ~~Skill output location at install time.~~ Project-local at `<project_root>/.claude/skills/`, supplied by the agent. Never personal/global.
+- ~~Static vs dynamic content (e.g., `initial_instructions`).~~ Resolved by exclusion. Skill authors simply omit upstream tools that bundle static guidance with dynamic state when the dynamic state has cleaner alternatives via other tools. No proxy-side intercept mechanism needed. This turns out to be a Serena-specific quirk — most MCP servers don't bundle their usage instructions into a callable tool. The example skills accordingly *exclude* Serena's `initial_instructions`: its memories list is already covered by `list_memories` in the memory skill, and "active project" status is inferable from whether other tools succeed or fail.
+- ~~Skill output location at install time.~~ Agent-supplied `skills_root` — the agent passes the full target directory; the proxy doesn't append `.claude/skills`. Convention is `<project_root>/.claude/skills` for Claude Code project-local install (the recommended default). User-facing guidance is "always project-local"; the proxy is host-neutral and writes wherever the agent points.
 - ~~Master skill source location.~~ `<proxy-install-dir>/skills/<skill-name>/SKILL.md`. Convention-based, no config path needed.
 - ~~Skill grouping for multi-purpose servers.~~ Naming convention only — `toolproxy-<server>` for a single skill, `toolproxy-<server>-<group>` when split. No config registration; the proxy discovers skills by listing the skills directory.
 - ~~Description content convention.~~ Use `description` only (no `when_to_use` — it's a Claude-Code-only extension, functionally appended to description, drops cross-client portability). Style rules pinned by the four Serena drafts:
@@ -114,13 +132,13 @@ Treat as a separate, prerequisite step:
 ## Decisions to make before coding
 
 1. **Config schema for upstream servers.** Mostly inherits from existing `appsettings.json`: per-server connection details (transport, command, args, env, etc.). No per-skill config registration is needed — skills are discovered by listing `<proxy-install-dir>/skills/`. Worth confirming the existing schema still fits once the embedding-related fields are stripped out.
-2. **`install_skills` response shape.** Apart from the list of installed paths, what else does it return? The first-install warning when `.claude/skills/` had to be created; possibly a per-skill outcome (installed, unchanged, error). Pin down before implementing the tool.
+2. **`install_skills` response shape.** Apart from the list of installed paths, what else does it return? The first-install warning when `<skills_root>` had to be created; possibly a per-skill outcome (installed, unchanged, error). Pin down before implementing the tool.
 
 ## Notes / parking lot
 
 - An earlier draft proposed a small-LLM router living inside the proxy (qwen2.5:3b via Ollama). Superseded — the host agent is a better router than anything we'd run locally, and a passive proxy is simpler.
 - A later draft proposed dynamic tool exposure via `notifications/tools/list_changed`. Superseded — client support is inconsistent (agents commonly cache tool lists per session), and the skills approach achieves the same progressive-disclosure outcome without a protocol-support assumption.
-- An intermediate draft proposed a `toolproxy bootstrap` CLI subcommand with interactive overwrite/ignore/copy-alongside conflict prompts and an `install_skills` step that returned skill bytes for the agent to write. Superseded — the agent calling `install_skills(project_root)` and letting the proxy write directly is simpler, keeps skill bodies out of conversation context, and removes the entire conflict-handling surface (proxy is source of truth, install is unconditional overwrite, project-local only).
+- An intermediate draft proposed a `toolproxy bootstrap` CLI subcommand with interactive overwrite/ignore/copy-alongside conflict prompts and an `install_skills` step that returned skill bytes for the agent to write. Superseded — the agent calling `install_skills(skills_root)` and letting the proxy write directly is simpler, keeps skill bodies out of conversation context, and removes the entire conflict-handling surface (proxy is source of truth, install is unconditional overwrite, project-local by guidance).
 - Hybrid BM25 + embedding was discussed in the earliest draft. No longer relevant once semantic search is removed.
 
 ## Reference: Claude Code skill loading mechanics
