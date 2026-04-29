@@ -17,6 +17,7 @@ namespace ToolProxy.Tools
 
         [McpServerTool, Description(
             "Install ToolProxy's bundled Agent Skills into the host's skills directory. " +
+            "This is a top-level proxy tool — call it directly; do not route it through `call_external_tool`. " +
             "Pass the full skills directory path (skills_root). For Claude Code project-local " +
             "install — the recommended default — that's `<project_root>/.claude/skills`. " +
             "Each toolproxy-* skill is copied unconditionally, overwriting any existing files. " +

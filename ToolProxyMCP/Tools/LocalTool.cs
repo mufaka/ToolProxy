@@ -20,7 +20,7 @@ namespace ToolProxy.Tools
             _logger = logger;
         }
 
-        [McpServerTool, Description("Call a tool on an upstream MCP server fronted by ToolProxy. Use this to invoke any tool advertised by a configured upstream server; consult the matching toolproxy-* skill for the exact server, tool, and arguments envelope.")]
+        [McpServerTool, Description("Call a tool on an upstream MCP server fronted by ToolProxy. Use this only for upstream tools advertised by a configured server (see `list_servers`); consult the matching toolproxy-* skill for the exact server, tool, and arguments envelope. The proxy's own meta-tools — `list_servers` and `install_skills` — are top-level tools on this MCP server and must be called directly, not routed through `call_external_tool`.")]
         public async Task<string> CallExternalToolAsync(
             [Description("Name of the upstream MCP server (matches the configured server name)")] string server,
             [Description("Name of the tool to call on that server")] string tool,
@@ -38,7 +38,7 @@ namespace ToolProxy.Tools
             }
         }
 
-        [McpServerTool, Description("List all configured upstream MCP servers fronted by ToolProxy, with each server's description and tool count. Useful for confirming proxy configuration; for actual tool usage, refer to the matching toolproxy-* skill.")]
+        [McpServerTool, Description("List all configured upstream MCP servers fronted by ToolProxy, with each server's description and tool count. This is a top-level proxy tool — call it directly; do not route it through `call_external_tool`. Useful for discovering the exact server names (case is preserved as configured) before dispatching upstream calls; for actual tool usage on a server, refer to the matching toolproxy-* skill.")]
         public async Task<string> ListServersAsync(CancellationToken cancellationToken = default)
         {
             var jsonOptions = new JsonSerializerOptions

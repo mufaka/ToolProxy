@@ -8,7 +8,7 @@ namespace ToolProxy.Services
         private readonly AppSettings _settings;
         private readonly ILogger<McpManager> _logger;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly Dictionary<string, IManagedMcpServer> _servers = new();
+        private readonly Dictionary<string, IManagedMcpServer> _servers = new(StringComparer.OrdinalIgnoreCase);
         private bool _disposed;
 
         public McpManager(AppSettings settings, ILogger<McpManager> logger, ILoggerFactory loggerFactory)
