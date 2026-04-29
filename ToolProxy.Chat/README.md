@@ -1,6 +1,6 @@
-﻿# ToolProxy Chat
+﻿# ToolProxy Chat - DEPRECATED
 
-A modern desktop chat application built with Avalonia UI that integrates with the ToolProxy MCP (Model Context Protocol) server and local language models via Ollama.
+A modern desktop chat application built with Avalonia UI that integrates with the ToolProxy MCP (Model Context Protocol) server and local language models via Ollama. Leaving this here for historical purposes. With the refactor of the ToolProxy, this no longer will work unless we also refactor this to use agent skills.
 
 ## Overview
 
