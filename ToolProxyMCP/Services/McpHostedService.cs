@@ -6,16 +6,13 @@ namespace ToolProxy.Services
     public class McpHostedService : IHostedService
     {
         private readonly IMcpManager _mcpManager;
-        private readonly IToolIndexService _toolIndexService;
         private readonly ILogger<McpHostedService> _logger;
 
         public McpHostedService(
             IMcpManager mcpManager,
-            IToolIndexService toolIndexService,
             ILogger<McpHostedService> logger)
         {
             _mcpManager = mcpManager ?? throw new ArgumentNullException(nameof(mcpManager));
-            _toolIndexService = toolIndexService ?? throw new ArgumentNullException(nameof(toolIndexService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -28,9 +25,6 @@ namespace ToolProxy.Services
             if (success)
             {
                 _logger.LogInformation("All enabled MCP servers started successfully");
-
-                // Build the tool index after servers are started
-                await _toolIndexService.RefreshIndexAsync();
             }
             else
             {

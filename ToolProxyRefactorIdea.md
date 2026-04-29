@@ -131,8 +131,16 @@ Treat as a separate, prerequisite step:
 
 ## Decisions to make before coding
 
-1. **Config schema for upstream servers.** Mostly inherits from existing `appsettings.json`: per-server connection details (transport, command, args, env, etc.). No per-skill config registration is needed — skills are discovered by listing `<proxy-install-dir>/skills/`. Worth confirming the existing schema still fits once the embedding-related fields are stripped out.
-2. **`install_skills` response shape.** Apart from the list of installed paths, what else does it return? The first-install warning when `<skills_root>` had to be created; possibly a per-skill outcome (installed, unchanged, error). Pin down before implementing the tool.
+1. ~~**Config schema for upstream servers.**~~ **Resolved during implementation.** The pre-refactor `McpServerConfig` (transport, command, args, env, url, enabled, tools) survived intact — none of its fields were embedding-coupled. The `Tools` array is retained as a fallback when upstream `tools/list` fails; in practice it stays empty and runtime discovery wins. No per-skill config registration; skills are convention-discovered from `<proxy-install-dir>/skills/`.
+2. ~~**`install_skills` response shape.**~~ **Resolved during implementation.** Returns `{ skills_root, created_skills_root: bool, warning: string?, results: [{ name, path, status: "installed" | "error", error?: string }] }`. The first-install warning rides on the top-level `warning` field (null on subsequent installs) so it's easy for the agent to surface to the user without inspecting per-skill rows. Per-skill rows track only success/failure — there is no `unchanged` distinction since installs are unconditional overwrites.
+
+## Implementation outcomes worth pinning
+
+- **Dispatcher service.** Renamed `IToolIndexService` → `IMcpDispatcher` / `McpDispatcher`. Trimmed to a single `CallExternalToolAsync(server, tool, arguments, ct)` method; the index-shaped helpers (`GetAllExternalToolsAsync`, `GetServerToolsAsync`, `RefreshIndexAsync`, `SearchToolsSemanticAsync`) are gone.
+- **`list_servers` shape.** `[{ name, description, tool_count }]`. Description is included because it's a near-free hint for "what's configured" debugging; the per-tool detail belongs in skill bodies.
+- **Tool surface.** `tools/list` returns exactly `call_external_tool`, `install_skills`, `list_servers`.
+- **Dispatch param shape on the wire (verified).** `inputSchema` for `call_external_tool` is `{ server: string, tool: string, arguments }` with all three required.
+- **Dependency cleanup.** `Microsoft.SemanticKernel`, `Microsoft.SemanticKernel.Connectors.{InMemory,Ollama}`, `OllamaSharp`, `Microsoft.Extensions.AI`, `Microsoft.Extensions.VectorData.Abstractions`, and `System.Linq.Async` are all gone from `ToolProxyMCP`. Only `ModelContextProtocol{,.AspNetCore}` 1.2.0 and `Microsoft.Extensions.*` 10.0.7 remain. ToolProxy.Chat (deprecated) was left on `net9.0` against the old MCP SDK.
 
 ## Notes / parking lot
 

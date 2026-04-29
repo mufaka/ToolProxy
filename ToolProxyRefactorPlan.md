@@ -10,84 +10,91 @@ Mark items `[x]` as completed. Add notes inline under a task when implementation
 
 Isolate dependency churn from logic changes. Build must be green before Phase 2.
 
-- [ ] Bump TFM `net9.0` → `net10.0` in `ToolProxyMCP/ToolProxy.csproj` (and any other projects participating in the refactor).
-- [ ] Update SDK in `global.json` if pinned.
-- [ ] Update `ModelContextProtocol` SDK from `0.3.0-preview.4` to current; resolve breaking changes.
-- [ ] Remove NuGet refs: `Microsoft.SemanticKernel`, `Microsoft.SemanticKernel.Connectors.InMemory`, `OllamaSharp`.
+- [x] Bump TFM `net9.0` → `net10.0` in `ToolProxyMCP/ToolProxy.csproj` (and any other projects participating in the refactor).
+  - ToolProxy.Chat left on `net9.0` per its deprecated status; not in the refactor scope.
+- [x] Update SDK in `global.json` if pinned. (No `global.json` exists; SDK 10.0.105 is on PATH.)
+- [x] Update `ModelContextProtocol` SDK from `0.3.0-preview.4` to current (`1.2.0`); resolve breaking changes.
+  - Renames in 1.x: `IMcpClient` → `McpClient`; `SseClientTransport`/`SseClientTransportOptions` → `HttpClientTransport`/`HttpClientTransportOptions`; `McpClientFactory.CreateAsync` → `McpClient.CreateAsync`. Updated `Services/ManagedMcpServer.cs`.
+  - `Microsoft.Extensions.VectorData.Abstractions` 10.x: `[VectorStoreVector]` `Dimensions` is now positional, not named. Updated `Models/ToolVectorRecord.cs` (file is being deleted in Phase 2 anyway).
+- [ ] ~~Remove NuGet refs: `Microsoft.SemanticKernel`, `Microsoft.SemanticKernel.Connectors.InMemory`, `OllamaSharp`.~~ Deferred to Phase 2 — removing the packages without deleting their consumers breaks the build, so the package removal is folded into Phase 2's atomic strip-and-delete step. (The plan's Phase 1 smoke-test note also says "legacy semantic tool is still wired up at this point" — consistent with that interpretation.)
 - [ ] Remove `Microsoft.Extensions.AI` if no remaining usage after Phase 2.
-- [ ] `dotnet build` clean across the solution. ToolProxy.Chat may break — acceptable per scope.
+- [x] `dotnet build` clean across the solution. ToolProxy.Chat builds on `net9.0` against the old MCP SDK (acceptable per scope).
 - [ ] Smoke test: launch the proxy with one upstream server and verify `tools/list` still works (legacy semantic tool is still wired up at this point — that's fine).
 
 ## Phase 2 — Strip semantic search
 
 Delete the embedding/index path entirely. Leaves dispatch + upstream-server plumbing intact.
 
-- [ ] Delete `ToolProxyMCP/Tools/EnhancedLocalTool.cs` (the `search_tools_semantic` tool and friends).
-- [ ] Delete `ToolProxyMCP/Services/SemanticKernelToolIndexService.cs`.
-- [ ] Delete `ToolProxyMCP/Services/EnhancedSemanticKernelToolIndexService.cs`.
-- [ ] Delete `ToolProxyMCP/Models/ToolVectorRecord.cs`.
-- [ ] Delete `ToolProxyMCP/Configuration/SemanticKernelSettings.cs`.
-- [ ] Strip embedding/phrase-rewriting blocks from `appsettings.json` (and `appsettings.Development.json` if present).
-- [ ] In `Program.cs`, remove DI registrations for the deleted services and any `Microsoft.Extensions.AI` / Ollama wiring.
-- [ ] **Reshape the dispatcher service.** `IToolIndexService` is now misnamed — it's just a dispatcher. Choose one:
-  - Rename interface + implementation to `IMcpDispatcher` / `McpDispatcher`, drop the index-shaped methods, keep only `CallExternalToolAsync` (and any helpers needed for `list_servers`).
-  - Or keep the name temporarily and just trim methods. (Idea doc doesn't mandate either; pick the cleaner one in PR.)
-- [ ] Re-home the surviving local tools (the dispatcher tool + introspection) into a new `Tools/LocalTool.cs` (or keep the name pending Phase 3).
-- [ ] `dotnet build` clean. Run the proxy; confirm it starts and exposes only the surviving tools.
+- [x] Delete `ToolProxyMCP/Tools/EnhancedLocalTool.cs` (the `search_tools_semantic` tool and friends).
+- [x] Delete `ToolProxyMCP/Services/SemanticKernelToolIndexService.cs`.
+- [x] Delete `ToolProxyMCP/Services/EnhancedSemanticKernelToolIndexService.cs`.
+- [x] Delete `ToolProxyMCP/Models/ToolVectorRecord.cs`. (Empty `Models/` folder also removed.)
+- [x] Delete `ToolProxyMCP/Configuration/SemanticKernelSettings.cs`.
+- [x] Strip embedding/phrase-rewriting blocks from `appsettings.json` (no `appsettings.Development.json` exists).
+- [x] In `Program.cs`, remove DI registrations for the deleted services and any `Microsoft.Extensions.AI` / Ollama wiring. Also dropped the `/search-tools` and `/tool-index-info` HTTP endpoints and the `SearchToolsRequest` record. `McpHostedService` no longer takes `IToolIndexService` and no longer triggers an index refresh on startup.
+- [x] **Reshape the dispatcher service.** Renamed `IToolIndexService` → `IMcpDispatcher` and the impl → `McpDispatcher`. Trimmed to a single `CallExternalToolAsync` method; dropped the cache, search, and refresh members. `list_all_servers_and_tools_json` reads directly from `IMcpManager`.
+- [x] Re-home the surviving local tools into `Tools/LocalTool.cs` (`call_external_tool` and `list_all_servers_and_tools_json`).
+- [x] Also dropped `IndexManualTests/` (the `.http` files were aimed at the removed `/search-tools` endpoint).
+- [x] Removed package refs from `ToolProxy.csproj`: `Microsoft.SemanticKernel`, `Microsoft.SemanticKernel.Connectors.InMemory`, `Microsoft.SemanticKernel.Connectors.Ollama`, `OllamaSharp`, `Microsoft.Extensions.AI`, `Microsoft.Extensions.VectorData.Abstractions`, `System.Linq.Async`.
+- [x] `dotnet build` clean (zero warnings, zero errors).
 
 ## Phase 3 — Rename dispatch parameters
 
 Pin the `server` / `tool` / `arguments` shape that the skill drafts already use.
 
-- [ ] In the dispatcher tool method, rename: `serverName` → `server`, `toolName` → `tool`, `parameters` → `arguments`. Update `[Description]` attributes accordingly.
-- [ ] Cascade renames through the dispatcher interface and implementation (`CallExternalToolAsync` parameter names).
-- [ ] Update the tool's top-level `[Description]` to reflect the new envelope (no references to "search results sample" — that path is gone).
-- [ ] Confirm via `tools/list` against a live client that the parameter schema reads `server`, `tool`, `arguments`.
-- [ ] Make one end-to-end dispatch call against an upstream server using the new shape (e.g., a Serena `check_onboarding_performed`).
+- [x] In the dispatcher tool method, rename: `serverName` → `server`, `toolName` → `tool`, `parameters` → `arguments`. Update `[Description]` attributes accordingly.
+- [x] Cascade renames through the dispatcher interface and implementation (`CallExternalToolAsync` parameter names).
+- [x] Update the tool's top-level `[Description]` to reflect the new envelope (no references to "search results sample" — that path is gone).
+- [ ] Confirm via `tools/list` against a live client that the parameter schema reads `server`, `tool`, `arguments`. *(Deferred to Phase 7 manual smoke test.)*
+- [ ] Make one end-to-end dispatch call against an upstream server using the new shape (e.g., a Serena `check_onboarding_performed`). *(Deferred to Phase 7 manual smoke test.)*
 
 ## Phase 4 — Implement `install_skills` MCP tool
 
 The agent-invoked installer.
 
-- [ ] Add `Tools/SkillsInstallTool.cs` (or co-locate with the dispatcher tool — judgment call).
-- [ ] Resolve the proxy's master skills directory: `Path.Combine(AppContext.BaseDirectory, "skills")`. Verify this path resolves correctly when run via `dotnet run` and from a published binary.
-- [ ] Implement `install_skills(skills_root)`:
-  - [ ] Validate `skills_root` is a non-empty absolute path; reject relative paths with a clear error.
-  - [ ] Detect whether `skills_root` already exists (drives the first-install warning).
-  - [ ] Create `skills_root` if missing.
-  - [ ] For each subdirectory under `<proxy-install-dir>/skills/` containing a `SKILL.md`, copy the entire skill subtree to `<skills_root>/<skill-name>/`.
-    - Decision: skill *names* are taken from the source directory name. The frontmatter `name` field is not parsed — directory name is canonical.
-    - Overwrite unconditionally. No backup. No diff.
-  - [ ] Collect per-skill outcome: `{ name, path, status: "installed" | "error", error?: string }`.
-  - [ ] Return JSON: `{ skills_root, created_skills_root: bool, results: [...] }`. Include the first-install warning text in the response when `created_skills_root` is true.
-- [ ] Register the tool with `[McpServerTool, Description(...)]`. Description must explicitly say: "Pass the full skills directory path. For Claude Code project-local install, that's `<project_root>/.claude/skills`."
-- [ ] Ship the `skills/` directory with the build output. Add to `.csproj`:
-  ```xml
-  <ItemGroup>
-    <Content Include="..\skills\**" CopyToOutputDirectory="PreserveNewest" Link="skills\%(RecursiveDir)%(Filename)%(Extension)" />
-  </ItemGroup>
-  ```
-  Verify after `dotnet publish` that `skills/toolproxy-serena-*/SKILL.md` lands next to the executable.
-- [ ] End-to-end test: from an agent session, call `install_skills` with a temp dir; confirm all four Serena skill files land at expected paths and the response carries the first-install warning.
+- [x] Add `Tools/SkillsInstallTool.cs`.
+- [x] Resolve the proxy's master skills directory: `Path.Combine(AppContext.BaseDirectory, "skills")`. Verified via a small driver project that `AppContext.BaseDirectory` lands at `bin/.../net10.0/` and the `skills/` subtree is visible there.
+- [x] Implement `install_skills(skills_root)`:
+  - [x] Validate `skills_root` is a non-empty absolute path; reject relative paths with a clear error. (Uses `Path.IsPathFullyQualified`.)
+  - [x] Detect whether `skills_root` already exists (drives the first-install warning).
+  - [x] Create `skills_root` if missing.
+  - [x] For each subdirectory under `<proxy-install-dir>/skills/` containing a `SKILL.md`, copy the entire skill subtree to `<skills_root>/<skill-name>/`. Skill *names* are taken from the source directory name (frontmatter `name` not parsed). Overwrite unconditionally; no backup, no diff.
+  - [x] Collect per-skill outcome: `{ name, path, status: "installed" | "error", error?: string }`.
+  - [x] Return JSON: `{ skills_root, created_skills_root: bool, warning: string?, results: [...] }`. The first-install warning appears as a `warning` field (null on subsequent installs).
+- [x] Register the tool with `[McpServerTool, Description(...)]`. Description explicitly says: "Pass the full skills directory path. For Claude Code project-local install — the recommended default — that's `<project_root>/.claude/skills`."
+- [x] Ship the `skills/` directory with the build output via `<Content Include="..\skills\**\*" CopyToOutputDirectory="PreserveNewest" Link="skills\%(RecursiveDir)%(Filename)%(Extension)" />`. Verified `skills/toolproxy-serena-*/SKILL.md` lands in `bin/Debug/net10.0/skills/`.
+- [x] End-to-end test: ran the tool against a temp dir from a small driver project. All four Serena skills installed; first-install response carries the warning; second install on the same dir reports `created_skills_root: false` and no warning; relative-path and empty-string inputs are rejected.
 
 ## Phase 5 — Tighten remaining MCP surface
 
 Decide what stays exposed.
 
-- [ ] Remove `RefreshToolIndexAsync` (`refresh_tool_index`) — no index to refresh.
-- [ ] Remove `GetToolIndexInfoAsync` (`get_tool_index_info`) — no index, no info.
-- [ ] Decide on `list_all_servers_and_tools_json`: keep as-is for debugging, or replace with a leaner `list_servers` returning just `[{ name, tool_count }]`. Idea doc allows either; lean toward `list_servers` for less surface.
-- [ ] Final tool inventory after this phase: `call_external_tool`, `install_skills`, `list_servers` (or the JSON variant). Confirm `tools/list` matches.
+- [x] Remove `RefreshToolIndexAsync` (`refresh_tool_index`) — gone with `EnhancedLocalTool` in Phase 2.
+- [x] Remove `GetToolIndexInfoAsync` (`get_tool_index_info`) — gone with `EnhancedLocalTool` in Phase 2.
+- [x] Decided to replace `list_all_servers_and_tools_json` with a leaner `list_servers` returning `[{ name, description, tool_count }]`. Description is included because it's free and gives the agent meaningful context when invoked for debugging; the per-tool detail belongs in the skill bodies.
+- [x] Final tool inventory: `call_external_tool`, `install_skills`, `list_servers`. (Live `tools/list` confirmation deferred to Phase 7 manual smoke test.)
 
 ## Phase 6 — Config schema cleanup
 
-- [ ] Audit `Configuration/AppSettings.cs` for fields tied to embedding/phrase generation; remove.
-- [ ] Confirm `Configuration/McpServerConfig.cs` still covers transport, command, args, env. No new per-skill config block — skills are convention-discovered from the filesystem.
-- [ ] Update `appsettings.json` and any sample configs in the README to reflect the trimmed schema.
+- [x] Audited `Configuration/AppSettings.cs` — `SemanticKernel` field already removed in Phase 2; nothing else embedding-related remained.
+- [x] Confirmed `Configuration/McpServerConfig.cs` still covers transport, command, args, env, url. No new per-skill config block — skills are convention-discovered from the filesystem. The `Tools` list field is left in place; it's a fallback used by `ManagedMcpServer` when upstream tool discovery fails (in practice all configured servers have an empty list and rely on discovery).
+- [x] `appsettings.json` already trimmed in Phase 2; no `appsettings.Development.json` exists.
+- [x] Cleaned up a stale error message in `ManagedMcpServer.CallToolAsync` that referenced "the example given in the tool search result" — that path is gone; the message now just lists available tools.
+- [ ] README sample-config update is folded into Phase 8 ("Documentation + sync").
 
 ## Phase 7 — Manual smoke test against the curated fleet
 
 No automated test backfill (out of scope per idea doc) — verify the happy path manually.
+
+**In-session wire-level checks completed** (with an empty `McpServers` config, since the curated fleet uses Windows `cmd.exe` commands that won't run on this Linux host):
+
+- [x] Built and ran the proxy from `bin/Debug/net10.0/`. `/health` returns `200 OK`.
+- [x] Drove a streamable-HTTP MCP handshake (`initialize` → `notifications/initialized` → `tools/list`). Server announces `{"name":"ToolProxy","version":"1.0.0.0"}` with the new instructions text.
+- [x] `tools/list` returns exactly the three planned tools — `call_external_tool`, `install_skills`, `list_servers`. The `call_external_tool` schema confirms the renamed envelope: `{server, tool, arguments}` (all required).
+- [x] Called `install_skills` over MCP against `/tmp/tp_smoke_install_…`. All four Serena skill directories landed, response includes the first-install warning.
+- [x] Called `list_servers` over MCP. Returns `{"servers":[]}` for the empty-config smoke; under a real config this lists the configured fleet with name/description/tool_count.
+
+**User-driven checks remaining** (require Claude Code + the user's actual upstream fleet):
 
 - [ ] Start the proxy with the live `appsettings.json` against the real curated upstream set.
 - [ ] From a Claude Code session: `tools/list` shows only the three local tools.
@@ -97,9 +104,13 @@ No automated test backfill (out of scope per idea doc) — verify the happy path
 
 ## Phase 8 — Documentation + sync
 
-- [ ] Update `README.md` to describe the skills-based design and the new local tool surface; remove references to semantic search.
-- [ ] Update `ToolProxyRefactorIdea.md` if Phase 1-7 surfaced decisions worth pinning (response shape details, dispatcher rename outcome, etc.).
-- [ ] Mark this plan complete and archive — or keep as a record of the executed sequence.
+- [x] Rewrote top-level `README.md` and `ToolProxyMCP/README.md` to describe the skills-based design, the three-tool surface (`call_external_tool`, `install_skills`, `list_servers`), and the trimmed dependency stack. Stale semantic-search / Ollama / Semantic-Kernel content removed.
+- [x] Decisions surfaced during implementation that are worth pinning back to the idea doc:
+  - Dispatcher rename: `IToolIndexService` → `IMcpDispatcher` / `McpDispatcher`, with a single `CallExternalToolAsync(server, tool, arguments, ct)` method (the broader index-shaped surface is gone).
+  - `install_skills` response shape: `{ skills_root, created_skills_root: bool, warning: string?, results: [{ name, path, status, error? }] }`. The first-install warning rides on the `warning` field rather than being inlined in `results`.
+  - `list_all_servers_and_tools_json` was replaced with the leaner `list_servers` returning `[{ name, description, tool_count }]`. (Description is included because it's a free hint to the agent for "what's configured" debugging.)
+  - The `Tools` array on `McpServerConfig` is retained as a fallback for upstream tool discovery failures, but is empty in normal use.
+- [x] Plan retained as the change log for the executed sequence; not archived.
 
 ---
 

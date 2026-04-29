@@ -13,7 +13,7 @@ namespace ToolProxy.Services
     {
         private readonly McpServerConfig _config;
         private readonly ILogger<ManagedMcpServer> _logger;
-        private IMcpClient? _mcpClient;
+        private McpClient? _mcpClient;
         private IClientTransport? _clientTransport;
         private bool _disposed;
         private List<ToolInfo> _discoveredTools = new();
@@ -72,8 +72,8 @@ namespace ToolProxy.Services
                     }
                 }
 
-                // Create MCP client using the official factory
-                _mcpClient = await McpClientFactory.CreateAsync(_clientTransport);
+                // Create MCP client using the SDK
+                _mcpClient = await McpClient.CreateAsync(_clientTransport);
 
 
                 if (!String.IsNullOrEmpty(_mcpClient.ServerInstructions))
@@ -128,7 +128,7 @@ namespace ToolProxy.Services
             });
         }
 
-        private SseClientTransport CreateHttpTransport()
+        private HttpClientTransport CreateHttpTransport()
         {
             if (string.IsNullOrEmpty(_config.Url))
             {
@@ -142,7 +142,7 @@ namespace ToolProxy.Services
 
             _logger.LogDebug("Creating HTTP transport for {Name}: {Url}", Name, _config.Url);
 
-            return new SseClientTransport(new SseClientTransportOptions
+            return new HttpClientTransport(new HttpClientTransportOptions
             {
                 Name = _config.Name,
                 Endpoint = uri,
@@ -308,7 +308,7 @@ namespace ToolProxy.Services
 
             if (!AvailableTools.Contains(toolName))
             {
-                throw new ArgumentException($"Tool {toolName} is not available on server {Name}. Be sure to follow the example given in the tool search result and try again. The available tools for this server: {string.Join(", ", AvailableTools)}");
+                throw new ArgumentException($"Tool '{toolName}' is not available on server '{Name}'. Available tools: {string.Join(", ", AvailableTools)}");
             }
 
             try
