@@ -1,156 +1,69 @@
-﻿# ToolProxy - AI-Powered Tool Discovery and Chat Interface
+# ToolProxy
 
-A comprehensive solution for intelligent tool discovery and AI-powered chat interactions using the Model Context Protocol (MCP) and local language models.
+A Model Context Protocol (MCP) server that fronts a curated fleet of upstream MCP servers and uses the host's **Agent Skills** primitive for progressive disclosure of per-server guidance.
 
-## Overview
+## Solution layout
 
-This solution consists of two interconnected components that work together to provide an enhanced AI assistant experience with access to a wide variety of tools:
+- **[ToolProxyMCP](ToolProxyMCP/README.md)** — the active MCP server. Three tools: `call_external_tool`, `install_skills`, `list_servers`. Ships hand-authored `SKILL.md` files that the agent's host loads lazily.
+- **ToolProxy.Chat** — Avalonia desktop chat client. **Deprecated.** Stays in the repo for historical reference and as a possible future home for first-class skill support; receives no changes.
 
-<img width="1992" height="1503" alt="image" src="https://github.com/user-attachments/assets/d503543e-bdd8-4821-a2f3-4d465c43aecb" />
+## How it works
 
-### 🛠️ [ToolProxy MCP Server](ToolProxyMCP/README.md)
-A sophisticated MCP server that acts as a proxy and aggregator for multiple external MCP servers, enhanced with AI-powered semantic search capabilities.
+1. The proxy connects to each configured upstream MCP server at startup and discovers their tools.
+2. The agent calls `install_skills(skills_root)` once per project — typically with `<project_root>/.claude/skills` for Claude Code project-local install. The proxy copies bundled `toolproxy-*` skill directories into that location.
+3. The host loads each skill's short description into base context. When a user request matches a skill, the host lazy-loads its body, which contains the operating principles, tool reference, and worked examples for that upstream server.
+4. The agent dispatches tool calls through `call_external_tool(server, tool, arguments)`. Each skill body shows the exact envelope to use.
 
-**Key Features:**
-- **Multi-Server Aggregation**: Connect to multiple external MCP servers simultaneously
-- **Semantic Tool Discovery**: AI-powered tool search using vector embeddings and natural language queries
-- **Multiple Transport Protocols**: STDIO, HTTP, and SSE support
-- **Real-time Tool Indexing**: Dynamic tool discovery and refresh capabilities
-- **Vector-Based Search**: Powered by Ollama embeddings for intelligent tool matching
+This replaces an earlier embedding-based "semantic tool search" design. The host agent's tool selection is more reliable than cosine retrieval, and skills give us native progressive disclosure without depending on `tools/list_changed` (which has inconsistent client support).
 
-### 💬 [ToolProxy Chat](ToolProxy.Chat/README.md)
-A modern desktop chat application built with Avalonia UI that provides an intuitive interface for interacting with AI agents that have access to tools through the ToolProxy MCP server.
+## Quick start
 
-**Key Features:**
-- **Modern Cross-Platform UI**: Built with Avalonia UI for Windows, macOS, and Linux
-- **AI Agent Integration**: Powered by Microsoft Semantic Kernel with intelligent tool selection
-- **Local LLM Support**: Uses Ollama for privacy-focused, local language model inference
-- **Real-time Chat**: Responsive chat interface with message history and status indicators
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     ToolProxy Solution                      │
-├─────────────────────────────────────────────────────────────┤
-│  ToolProxy.Chat (Desktop Application)                       │
-│  ├─ Avalonia UI Frontend                                    │
-│  ├─ Semantic Kernel Agent                                   │
-│  └─ MCP Client Integration                                  │
-├─────────────────────────────────────────────────────────────┤
-│                         MCP Protocol                        │
-├─────────────────────────────────────────────────────────────┤
-│  ToolProxy MCP Server                                       │
-│  ├─ Semantic Tool Search                                    │
-│  ├─ Multi-Server Proxy                                      │
-│  ├─ Vector Store & Embeddings                               │
-│  └─ External MCP Server Management                          │
-├─────────────────────────────────────────────────────────────┤
-│  External MCP Servers                                       │
-│  ├─ Context7 (Documentation)                                │
-│  ├─ Sequential Thinking                                     │
-│  ├─ Serena (Language Server)                                │
-│  └─ Custom Servers...                                       │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Quick Start
-
-### Prerequisites
-- **.NET 9 SDK**
-- **Ollama** (for local LLM and embeddings)
-- **Node.js** (for npm-based MCP servers)
-
-### 1. Start Ollama
-```bash
-ollama serve
-ollama pull qwen2.5:7b-instruct    # For chat
-ollama pull mxbai-embed-large      # For semantic search, or nomic-embed-text for larger context size
-```
-
-### 2. Start ToolProxy MCP Server
 ```bash
 cd ToolProxyMCP
 dotnet run
 ```
 
-### 3. Start ToolProxy Chat Application
-```bash
-cd ToolProxy.Chat
-dotnet run
-```
+Then, from your MCP-capable host (e.g. Claude Code), connect to `http://localhost:3030/mcp` and ask the agent to install ToolProxy's skills:
 
-## How It Works
+> Install ToolProxy's skills into this project.
 
-1. **Tool Discovery**: The ToolProxy MCP server discovers and indexes tools from multiple external MCP servers
-2. **Semantic Search**: Tools are embedded as vectors using Ollama, enabling natural language search
-3. **Chat Interface**: Users interact through the desktop chat application
-4. **Intelligent Tool Selection**: The AI agent automatically searches for and uses relevant tools based on user requests
-5. **Tool Execution**: Tools are executed through the MCP protocol and results are returned to the chat
+The agent will call `install_skills` with `<project_root>/.claude/skills`. On first install in a new project, restart the host once so live skill reload starts watching the directory.
 
-## Example Workflow
+## Bundled skills
 
-1. User asks: *"Can you help me analyze this code repository?"*
-2. ToolProxy Chat agent searches for relevant tools using semantic search
-3. Agent discovers code analysis tools from connected MCP servers
-4. Agent uses the appropriate tools to analyze the repository
-5. Results are presented in the chat interface
+Source: `<repo>/skills/<skill-name>/SKILL.md`. Currently:
 
-## Configuration
+- `toolproxy-serena-explore` — code navigation (find symbols, references)
+- `toolproxy-serena-edit` — symbol-level code edits
+- `toolproxy-serena-memory` — Serena's memory store
+- `toolproxy-serena-session` — onboarding / session-level concerns
 
-Both applications share similar configuration patterns:
+Skills are hand-authored. To change what a project sees, edit the master `SKILL.md` under `<repo>/skills/` and re-run `install_skills`.
 
-- **Ollama Settings**: Configure LLM endpoints and models
-- **MCP Server Settings**: Define external server connections
-- **Agent Behavior**: Customize system prompts and behavior
+## Prerequisites
 
-See individual project READMEs for detailed configuration options.
+- .NET 10 SDK
+- Whatever runtimes the configured upstream servers need (commonly Node.js for `npx`-based servers, Python with `uvx` for Serena).
 
-## Use Cases
-
-- **Development Assistance**: Code analysis, documentation lookup, project management
-- **Research and Documentation**: Access to up-to-date library documentation and references
-- **Task Planning**: Complex task decomposition and sequential thinking
-- **Multi-Tool Workflows**: Combining multiple specialized tools in intelligent workflows
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branches for each component
-3. Follow the existing patterns and architecture
-4. Add tests for new functionality
-5. Update documentation as needed
-
-## Project Structure
+## Project structure
 
 ```
 ToolProxy/
-├── ToolProxyMCP/           # MCP Server with semantic search
-│   ├── Services/           # Core services and MCP management
-│   ├── Tools/              # Built-in tools and extensions
-│   ├── Models/             # Data models and configuration
-│   └── README.md           # Detailed server documentation
-├── ToolProxy.Chat/         # Desktop chat application
-│   ├── Views/              # Avalonia UI views
-│   ├── ViewModels/         # MVVM view models
-│   ├── Services/           # Business logic and integrations
-│   ├── Models/             # Data models and configuration
-│   └── README.md           # Detailed chat app documentation
-└── README.md               # This file
+├── ToolProxyMCP/                # Active MCP server
+│   ├── Configuration/           # appsettings binding
+│   ├── Services/                # McpManager, McpDispatcher, hosted service
+│   ├── Tools/                   # LocalTool, SkillsInstallTool
+│   ├── appsettings.json         # Upstream server roster
+│   └── README.md                # Server-side details
+├── ToolProxy.Chat/              # Deprecated desktop client (kept for reference)
+├── skills/                      # Master skill source — bundled at build time
+│   └── toolproxy-serena-*/SKILL.md
+├── ToolProxyRefactorIdea.md     # Design rationale
+├── ToolProxyRefactorPlan.md     # Implementation plan / change log
+└── README.md                    # This file
 ```
 
-## Technology Stack
+## Related
 
-- **.NET 9**: Modern cross-platform runtime
-- **Microsoft Semantic Kernel**: AI orchestration and agent framework
-- **Avalonia UI**: Cross-platform desktop UI framework
-- **Model Context Protocol**: Tool integration standard
-- **Ollama**: Local language model inference
-- **Vector Embeddings**: Semantic search capabilities
-
-## Related Projects
-
-- **Model Context Protocol**: https://github.com/modelcontextprotocol
-- **Microsoft Semantic Kernel**: https://github.com/microsoft/semantic-kernel
-- **Ollama**: https://ollama.ai/
-- **Avalonia UI**: https://avaloniaui.net/
+- [Model Context Protocol](https://github.com/modelcontextprotocol)
+- [Agent Skills](https://agentskills.io)

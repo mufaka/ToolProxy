@@ -2,36 +2,33 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.AI" Version="9.8.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" Version="9.7.0" />
-    <PackageReference Include="Microsoft.SemanticKernel" Version="1.63.0" />
-    <PackageReference Include="Microsoft.SemanticKernel.Connectors.InMemory" Version="1.63.0-preview" />
-    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" Version="1.64.0-alpha" />
-    <PackageReference Include="ModelContextProtocol" Version="0.3.0-preview.4" />
-    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.3.0-preview.4" />
-    <PackageReference Include="OllamaSharp" Version="5.3.6" />
-    <PackageReference Include="System.Linq.Async" Version="6.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.7" />
+    <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\skills\**\*" CopyToOutputDirectory="PreserveNewest" Link="skills\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
