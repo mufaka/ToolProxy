@@ -37,6 +37,8 @@ Source: `<repo>/skills/<skill-name>/SKILL.md`. Currently:
 - `toolproxy-serena-edit` — symbol-level code edits
 - `toolproxy-serena-memory` — Serena's memory store
 - `toolproxy-serena-session` — onboarding / session-level concerns
+- `toolproxy-ms-docs` — Microsoft Learn documentation lookup (search, fetch, code samples)
+- `toolproxy-context7` — third-party library documentation lookup via Context7
 
 Skills are hand-authored. To change what a project sees, edit the master `SKILL.md` under `<repo>/skills/` and re-run `install_skills`.
 
