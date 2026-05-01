@@ -1,7 +1,8 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ToolProxy.Services;
 
 namespace ToolProxy.Tools
@@ -24,12 +25,18 @@ namespace ToolProxy.Tools
         public async Task<string> CallExternalToolAsync(
             [Description("Name of the upstream MCP server (matches the configured server name)")] string server,
             [Description("Name of the tool to call on that server")] string tool,
-            [Description("JSON object of arguments for the tool, matching the upstream tool's input schema")] JsonElement arguments,
+            [Description("JSON object of arguments for the tool, matching the upstream tool's input schema; omit or pass {} when the upstream tool takes no arguments")] JsonObject? arguments = null,
             CancellationToken cancellationToken = default)
         {
             try
             {
-                return await _dispatcher.CallExternalToolAsync(server, tool, arguments, cancellationToken);
+                arguments ??= new JsonObject();
+
+                return await _dispatcher.CallExternalToolAsync(
+                    server,
+                    tool,
+                    JsonSerializer.SerializeToElement(arguments),
+                    cancellationToken);
             }
             catch (Exception ex)
             {

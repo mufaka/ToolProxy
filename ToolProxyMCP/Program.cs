@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -42,8 +42,13 @@ namespace ToolProxy
 
             services.AddHostedService<McpHostedService>();
 
+            var statelessHttpTransport = configuration.GetValue<bool>("McpServer:Stateless", true);
+
             services.AddMcpServer()
-                .WithHttpTransport()
+                .WithHttpTransport(options =>
+                {
+                    options.Stateless = statelessHttpTransport;
+                })
                 .WithToolsFromAssembly();
 
             services.AddOptions<McpServerOptions>().Configure(options =>
@@ -63,6 +68,7 @@ namespace ToolProxy
             app.Urls.Add($"http://{mcpHost}:{mcpPort}");
 
             Console.WriteLine($"Starting ToolProxy MCP server on http://{mcpHost}:{mcpPort}");
+            Console.WriteLine($"MCP HTTP transport stateless mode: {statelessHttpTransport}");
 
             await app.RunAsync();
         }
