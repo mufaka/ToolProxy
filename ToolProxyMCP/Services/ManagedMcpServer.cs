@@ -146,6 +146,7 @@ namespace ToolProxy.Services
             {
                 Name = _config.Name,
                 Endpoint = uri,
+                AdditionalHeaders = _config.Headers,
                 TransportMode = HttpTransportMode.AutoDetect // Try Streamable HTTP first, fallback to SSE
             });
         }

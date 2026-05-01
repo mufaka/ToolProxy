@@ -1,4 +1,4 @@
-# ToolProxy MCP Server
+﻿# ToolProxy MCP Server
 
 A minimal Model Context Protocol (MCP) server that fronts a curated fleet of upstream MCP servers. Tool discovery is handled by the host's **Agent Skills** primitive — ToolProxy ships hand-authored `SKILL.md` files (one or more per upstream server) and an `install_skills` tool that copies them into a project's skills directory. The host loads each skill's description into base context and lazy-loads the body when a request matches.
 
@@ -66,7 +66,7 @@ Per-server fields:
 
 - `Transport`: `stdio`, `http`, `streamable-http`, or `sse`.
 - `Command` / `Args` / `Env`: STDIO transport.
-- `Url`: HTTP transports (auto-detects streamable-HTTP vs SSE).
+- `Url` / `Headers`: HTTP transports (`Headers` sends custom request headers such as `Authorization`; auto-detects streamable-HTTP vs SSE).
 - `Enabled`: false skips the server.
 - `Tools`: optional fallback tool list used only if upstream tool discovery fails. Leave empty in normal use; the proxy discovers tools at startup via `tools/list`.
 

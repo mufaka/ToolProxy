@@ -8,6 +8,7 @@
         // Transport configuration
         public string Transport { get; set; } = "stdio"; // "stdio" or "http"
         public string? Url { get; set; } // Required for HTTP transport
+        public Dictionary<string, string> Headers { get; set; } = new(); // Optional for HTTP transport
 
         // STDIO transport configuration
         public string Command { get; set; } = string.Empty;

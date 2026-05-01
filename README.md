@@ -1,4 +1,4 @@
-# ToolProxy
+﻿# ToolProxy
 
 A Model Context Protocol (MCP) server that fronts a curated fleet of upstream MCP servers and uses the host's **Agent Skills** primitive for progressive disclosure of per-server guidance.
 
@@ -39,6 +39,14 @@ Source: `<repo>/skills/<skill-name>/SKILL.md`. Currently:
 - `toolproxy-serena-session` — onboarding / session-level concerns
 - `toolproxy-ms-docs` — Microsoft Learn documentation lookup (search, fetch, code samples)
 - `toolproxy-context7` — third-party library documentation lookup via Context7
+- `toolproxy-teamware-projects` — Teamware project discovery, activity, and lounge coordination
+- `toolproxy-teamware-tasks` — Teamware task triage, creation, assignment, comments, and workflow updates
+- `toolproxy-teamware-ideas` — Teamware idea discovery, specification context, and idea discussion
+- `toolproxy-teamware-inbox` — Teamware inbox capture and inbox-to-task processing
+- `toolproxy-srclight-workspace` — Srclight workspace maps, index state, build targets, and platform-conditionals
+- `toolproxy-srclight-explore` — Srclight symbol search, file symbol listings, signatures, and full symbol reads
+- `toolproxy-srclight-impact` — Srclight callers, dependencies, hierarchies, tests, and platform variants
+- `toolproxy-srclight-history` — Srclight recent changes, hotspots, blame, and uncommitted work
 
 Skills are hand-authored. To change what a project sees, edit the master `SKILL.md` under `<repo>/skills/` and re-run `install_skills`.
 
