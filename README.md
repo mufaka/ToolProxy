@@ -47,6 +47,9 @@ Source: `<repo>/skills/<skill-name>/SKILL.md`. Currently:
 - `toolproxy-srclight-explore` — Srclight symbol search, file symbol listings, signatures, and full symbol reads
 - `toolproxy-srclight-impact` — Srclight callers, dependencies, hierarchies, tests, and platform variants
 - `toolproxy-srclight-history` — Srclight recent changes, hotspots, blame, and uncommitted work
+- `toolproxy-sqltools-schema` — SqlTools SQL Server connections, table metadata, and stored procedure definitions
+- `toolproxy-sqltools-query` — SqlTools read-only query validation, execution, and top-row sampling
+- `toolproxy-sqltools-catalog` — SqlTools C# data-access cataloging and stored-procedure usage discovery
 
 Skills are hand-authored. To change what a project sees, edit the master `SKILL.md` under `<repo>/skills/` and re-run `install_skills`.
 
