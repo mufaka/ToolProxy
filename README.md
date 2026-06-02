@@ -50,6 +50,7 @@ Source: `<repo>/skills/<skill-name>/SKILL.md`. Currently:
 - `toolproxy-sqltools-schema` — SqlTools SQL Server connections, table metadata, and stored procedure definitions
 - `toolproxy-sqltools-query` — SqlTools read-only query validation, execution, and top-row sampling
 - `toolproxy-sqltools-catalog` — SqlTools C# data-access cataloging and stored-procedure usage discovery
+- `toolproxy-gitnexus` — GitNexus code intelligence: execution-flow search, symbol context, blast-radius impact, git-diff change mapping, and call-graph-aware rename
 
 Skills are hand-authored. To change what a project sees, edit the master `SKILL.md` under `<repo>/skills/` and re-run `install_skills`.
 
